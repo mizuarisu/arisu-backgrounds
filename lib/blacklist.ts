@@ -1,37 +1,28 @@
 export type Severity = 'high' | 'medium' | 'low'
+export interface BlacklistUser { username: string; severity: Severity; reason: string; addedAt: string }
+export interface BlacklistGroup { id: string; name?: string; severity: Severity; reason: string; addedAt: string }
+export interface Blacklist { users: BlacklistUser[]; groups: BlacklistGroup[] }
 
-export interface BlacklistUser {
-  username: string
-  severity: Severity
-  reason: string
-  addedAt: string
-}
+const fallback: Blacklist = { users: [], groups: [] }
 
-export interface BlacklistGroup {
-  id: string
-  name?: string
-  severity: Severity
-  reason: string
-  addedAt: string
-}
-
-export interface Blacklist {
-  users: BlacklistUser[]
-  groups: BlacklistGroup[]
-}
-
-const KEY = 'roblox_blacklist_v1'
-
-export function loadBlacklist(): Blacklist {
-  if (typeof window === 'undefined') return { users: [], groups: [] }
+export async function loadBlacklist(): Promise<Blacklist> {
   try {
-    return JSON.parse(localStorage.getItem(KEY) || '{"users":[],"groups":[]}')
-  } catch {
-    return { users: [], groups: [] }
-  }
-}
+    const url = process.env.NEXT_PUBLIC_BLACKLIST_SHEET_URL
+    if (!url) return fallback
+    const res = await fetch(url, { cache: 'no-store' })
+    const text = await res.text()
+    const rows = text.split('\n').slice(1)
+    const users: BlacklistUser[] = []
+    const groups: BlacklistGroup[] = []
 
-export function saveBlacklist(bl: Blacklist) {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(KEY, JSON.stringify(bl))
+    rows.forEach((row) => {
+      const [type,idOrUsername,reason='',severity='medium'] = row.split(',').map(v=>v?.trim())
+      if (type === 'user') users.push({ username: idOrUsername.toLowerCase(), reason, severity: severity as Severity, addedAt: new Date().toISOString() })
+      if (type === 'group') groups.push({ id: idOrUsername, reason, severity: severity as Severity, addedAt: new Date().toISOString() })
+    })
+
+    return { users, groups }
+  } catch {
+    return fallback
+  }
 }
