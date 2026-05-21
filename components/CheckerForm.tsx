@@ -327,7 +327,7 @@ export default function CheckerForm() {
                         className="group relative"
                         title={f.name}
                       >
-                        <div className={`w-10 h-10 rounded-full overflow-hidden transition-opacity hover:opacity-80 ${flagged ? 'ring-2 ring-red-500' : 'ring-1'}`} style={!flagged ? { ringColor: 'var(--border)' } : {}}>
+                        <div className={`w-10 h-10 rounded-full overflow-hidden transition-opacity hover:opacity-80 ${flagged ? 'ring-2 ring-red-500' : ''}`} style={!flagged ? { border: '1px solid var(--border)' } : {}}>
                           {f.thumbnailUrl ? (
                             <img src={f.thumbnailUrl} alt={f.name} width={40} height={40} className="w-full h-full object-cover" />
                           ) : (
