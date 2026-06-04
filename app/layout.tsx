@@ -3,7 +3,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Roblox Background Check',
-  description: 'Look up Roblox player profiles, groups, badges, and check against a blacklist.',
+  description: 'Professional Roblox player background verification',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

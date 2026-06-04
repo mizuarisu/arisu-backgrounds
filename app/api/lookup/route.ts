@@ -38,7 +38,6 @@ export async function GET(req: NextRequest) {
     const avatarData = avatarAssets.status === 'fulfilled' ? avatarAssets.value : []
     const collectiblesData = collectibles.status === 'fulfilled' ? collectibles.value : []
 
-    // Get friend thumbnails
     const friendIds = friendsData.map((f: { id: number }) => f.id)
     const thumbnails = friendIds.length > 0 ? await getUserThumbnails(friendIds) : []
     const thumbMap: Record<number, string> = {}

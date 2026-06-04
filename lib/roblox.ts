@@ -2,7 +2,7 @@ const BASE = (sub: string) => `https://${sub}.roproxy.com`
 
 export async function getUserByUsername(username: string) {
   const res = await fetch(`${BASE('users')}/v1/usernames/users`, {
-    method: 'POST',
+    method: "POST",
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
     next: { revalidate: 0 },
@@ -36,14 +36,13 @@ export async function getGroups(uid: number) {
   }>
 }
 
-// Fetch up to 10 pages of badges (100 per page = 1000 badges max)
 export async function getAllBadges(uid: number) {
   const allBadges: Array<{ id: number; name: string; created: string; updated: string }> = []
   let cursor = ''
-  for (let page = 0; page < 10; page++) {
+  for (let page = 0; page < 25; page++) {
     const url = cursor
-      ? `${BASE('badges')}/v1/users/${uid}/badges?limit=100&sortOrder=Asc&cursor=${cursor}`
-      : `${BASE('badges')}/v1/users/${uid}/badges?limit=100&sortOrder=Asc`
+      ? `${BASE('badges')}/v1/users/${uid}/badges?limit=100&sortOrder=Desc&cursor=${cursor}`
+      : `${BASE('badges')}/v1/users/${uid}/badges?limit=100&sortOrder=Desc`
     const res = await fetch(url, { next: { revalidate: 0 } })
     if (!res.ok) break
     const data = await res.json()
@@ -69,7 +68,6 @@ export async function getCollectibles(uid: number) {
   return (data.data || []) as Array<{ assetId: number; name: string }>
 }
 
-// Get user thumbnails (headshots)
 export async function getUserThumbnails(userIds: number[]) {
   if (userIds.length === 0) return []
   const res = await fetch(`${BASE('thumbnails')}/v1/users/avatar-headshot?userIds=${userIds.join(',')}&size=48x48&format=Png`, { next: { revalidate: 3600 } })

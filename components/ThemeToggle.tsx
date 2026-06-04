@@ -3,8 +3,10 @@ import { useEffect, useState } from 'react'
 
 export default function ThemeToggle() {
   const [dark, setDark] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     const saved = localStorage.getItem('theme')
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
     const isDark = saved ? saved === 'dark' : prefersDark
@@ -18,6 +20,8 @@ export default function ThemeToggle() {
     document.documentElement.classList.toggle('dark', next)
     localStorage.setItem('theme', next ? 'dark' : 'light')
   }
+
+  if (!mounted) return null
 
   return (
     <button
