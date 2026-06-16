@@ -127,7 +127,7 @@ export default function DatabaseManager() {
       <div>
         <h2 className="text-lg font-semibold mb-4">Blacklisted Users</h2>
         <div className="mb-6 p-4 rounded" style={{ background: 'var(--muted-bg)', border: '1px solid var(--border)' }}>
-          <p className="text-xs mb-3" style={{ color: 'var(--muted)' }}>Add by username or Roblox User ID</p>
+          <p className="text-xs mb-3" style={{ color: 'var(--muted)' }}>Add by Roblox User ID. Make sure to write the username on the reasoning.</p>
           <div className="flex gap-2 mb-3">
             <input className="flex-1 min-w-[150px] px-3 py-2 text-sm" placeholder="Username or User ID..." value={userInput} onChange={e => setUserInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addUser()} />
             <select className="px-3 py-2 text-sm" value={userSev} onChange={e => setUserSev(e.target.value as Severity)}>
