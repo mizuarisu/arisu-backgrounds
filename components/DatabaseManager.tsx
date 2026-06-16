@@ -76,19 +76,17 @@ export default function DatabaseManager() {
       setUserReason('')
     } else {
       try {
-        const res = await fetch(`https://users.roproxy.com/v1/usernames/users`, {
+        const res = await fetch('/api/resolve-user', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ usernames: [userInput.trim()], excludeBannedUsers: false }),
+          body: JSON.stringify({ username: userInput.trim() }),
         })
         const data = await res.json()
-        if (!data.data || data.data.length === 0) {
+        if (!res.ok) {
           setError('User not found.')
           return
         }
-        const userId = String(data.data[0].id)
-        const resolvedName = data.data[0].name
-        await addEntry('user', userId, resolvedName, userSev, userReason)
+        await addEntry('user', data.id, data.name, userSev, userReason)
         setUserInput('')
         setUserReason('')
       } catch (e) {
