@@ -41,15 +41,19 @@ export async function getAllBadges(uid: number) {
   let cursor = ''
   for (let page = 0; page < 25; page++) {
     const url = cursor
-      ? `${BASE('badges')}/v1/users/${uid}/badges?limit=100&sortOrder=Desc&cursor=${cursor}`
-      : `${BASE('badges')}/v1/users/${uid}/badges?limit=100&sortOrder=Desc`
-    const res = await fetch(url, { next: { revalidate: 0 } })
-    if (!res.ok) break
-    const data = await res.json()
-    if (!data.data || data.data.length === 0) break
-    allBadges.push(...data.data)
-    if (!data.nextPageCursor) break
-    cursor = data.nextPageCursor
+      ? `https://badges.roblox.com/v1/users/${uid}/badges?limit=100&sortOrder=Desc&cursor=${cursor}`
+      : `https://badges.roblox.com/v1/users/${uid}/badges?limit=100&sortOrder=Desc`
+    try {
+      const res = await fetch(url, { next: { revalidate: 0 } })
+      if (!res.ok) break
+      const data = await res.json()
+      if (!data.data || data.data.length === 0) break
+      allBadges.push(...data.data)
+      if (!data.nextPageCursor) break
+      cursor = data.nextPageCursor
+    } catch (e) {
+      break
+    }
   }
   return allBadges
 }

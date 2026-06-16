@@ -1,4 +1,8 @@
+import { getBlacklistCollection } from './mongodb'
+import { ObjectId } from 'mongodb'
+
 export interface BlacklistEntry {
+  _id?: ObjectId
   id: string
   type: 'user' | 'group'
   value: string
@@ -13,34 +17,49 @@ export interface Database {
   groups: BlacklistEntry[]
 }
 
-// In-memory database for serverless compatibility
-let inMemoryDB: Database = { users: [], groups: [] }
-
 export async function getDatabase(): Promise<Database> {
-  return inMemoryDB
+  try {
+    const collection = await getBlacklistCollection()
+    const users = await collection.find({ type: 'user' }).toArray()
+    const groups = await collection.find({ type: 'group' }).toArray()
+    
+    return {
+      users: users as BlacklistEntry[],
+      groups: groups as BlacklistEntry[],
+    }
+  } catch (e) {
+    console.error('Database error:', e)
+    return { users: [], groups: [] }
+  }
 }
 
 export async function addEntry(entry: BlacklistEntry) {
-  if (entry.type === 'user') {
-    inMemoryDB.users.push(entry)
-  } else {
-    inMemoryDB.groups.push(entry)
+  try {
+    const collection = await getBlacklistCollection()
+    const result = await collection.insertOne(entry)
+    return { ...entry, _id: result.insertedId }
+  } catch (e) {
+    console.error('Add entry error:', e)
+    throw e
   }
-  return entry
 }
 
 export async function removeEntry(id: string) {
-  inMemoryDB.users = inMemoryDB.users.filter(u => u.id !== id)
-  inMemoryDB.groups = inMemoryDB.groups.filter(g => g.id !== id)
+  try {
+    const collection = await getBlacklistCollection()
+    await collection.deleteOne({ id })
+  } catch (e) {
+    console.error('Remove entry error:', e)
+    throw e
+  }
 }
 
 export async function updateEntry(id: string, updates: Partial<BlacklistEntry>) {
-  const userIndex = inMemoryDB.users.findIndex(u => u.id === id)
-  if (userIndex !== -1) {
-    inMemoryDB.users[userIndex] = { ...inMemoryDB.users[userIndex], ...updates }
-  }
-  const groupIndex = inMemoryDB.groups.findIndex(g => g.id === id)
-  if (groupIndex !== -1) {
-    inMemoryDB.groups[groupIndex] = { ...inMemoryDB.groups[groupIndex], ...updates }
+  try {
+    const collection = await getBlacklistCollection()
+    await collection.updateOne({ id }, { $set: updates })
+  } catch (e) {
+    console.error('Update entry error:', e)
+    throw e
   }
 }
