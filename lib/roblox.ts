@@ -36,14 +36,14 @@ export async function getGroups(uid: number) {
   }>
 }
 
-// Direct Roblox API, capped at 5 pages (500 badges) to avoid timeout
+// Badges via roproxy, capped at 5 pages (500 badges) to avoid timeout
 export async function getAllBadges(uid: number) {
   const allBadges: Array<{ id: number; name: string; created: string }> = []
   let cursor = ''
   for (let page = 0; page < 5; page++) {
     const url = cursor
-      ? `https://badges.roblox.com/v1/users/${uid}/badges?limit=100&sortOrder=Desc&cursor=${cursor}`
-      : `https://badges.roblox.com/v1/users/${uid}/badges?limit=100&sortOrder=Desc`
+      ? `${BASE('badges')}/v1/users/${uid}/badges?limit=100&sortOrder=Desc&cursor=${cursor}`
+      : `${BASE('badges')}/v1/users/${uid}/badges?limit=100&sortOrder=Desc`
     try {
       const res = await fetch(url, { next: { revalidate: 0 } })
       if (!res.ok) break
