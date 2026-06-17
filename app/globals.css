@@ -1,89 +1,110 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&family=JetBrains+Mono:wght@400;500&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #0a0a0a;
-  --muted: #737373;
-  --muted-bg: #f5f5f5;
-  --border: #e5e5e5;
-  --border-strong: #a3a3a3;
-  --danger: #dc2626;
-  --danger-bg: #fef2f2;
-  --warning: #d97706;
-  --warning-bg: #fffbeb;
-  --success: #16a34a;
-  --success-bg: #f0fdf4;
-  --info: #2563eb;
-  --info-bg: #eff6ff;
+  --bg: #0d0d0f;
+  --bg-2: #141417;
+  --bg-3: #1a1a1e;
+  --bg-4: #222228;
+  --border: #2a2a32;
+  --border-2: #3a3a46;
+  --fg: #f0f0f5;
+  --fg-2: #a0a0b0;
+  --fg-3: #606070;
+  --accent: #6366f1;
+  --accent-2: #818cf8;
+  --accent-glow: rgba(99,102,241,0.15);
+  --red: #f43f5e;
+  --red-bg: rgba(244,63,94,0.08);
+  --red-border: rgba(244,63,94,0.25);
+  --amber: #f59e0b;
+  --amber-bg: rgba(245,158,11,0.08);
+  --amber-border: rgba(245,158,11,0.25);
+  --green: #10b981;
+  --green-bg: rgba(16,185,129,0.08);
+  --green-border: rgba(16,185,129,0.25);
+  --blue: #3b82f6;
+  --blue-bg: rgba(59,130,246,0.08);
+  --blue-border: rgba(59,130,246,0.25);
 }
 
-.dark {
-  --background: #0a0a0a;
-  --foreground: #fafafa;
-  --muted: #a3a3a3;
-  --muted-bg: #171717;
-  --border: #262626;
-  --border-strong: #525252;
-  --danger: #f87171;
-  --danger-bg: #1c0a0a;
-  --warning: #fbbf24;
-  --warning-bg: #1c1000;
-  --success: #4ade80;
-  --success-bg: #0a1c0a;
-  --info: #60a5fa;
-  --info-bg: #0a0f1c;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
-* {
-  box-sizing: border-box;
-}
-
-html {
-  background: var(--background);
-  color: var(--foreground);
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  font-size: 15px;
+  line-height: 1.6;
 }
 
-h1, h2, h3, h4 {
-  letter-spacing: -0.02em;
-  font-weight: 600;
-  line-height: 1.1;
-}
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 99px; }
 
-::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  border-radius: 2px;
-}
-
-input, textarea, select {
-  background: var(--background);
-  color: var(--foreground);
+/* Inputs */
+input, select, textarea {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 14px;
+  background: var(--bg-3);
+  color: var(--fg);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 8px;
   outline: none;
-  transition: border-color 0.15s;
-  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+input::placeholder { color: var(--fg-3); }
+
+/* Animations */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent-glow); }
+  50% { box-shadow: 0 0 0 6px var(--accent-glow); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
-input:focus, textarea:focus, select:focus {
-  border-color: var(--foreground);
+.animate-in { animation: fade-in 0.3s ease both; }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-3) 25%, var(--bg-4) 50%, var(--bg-3) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
+
+/* Noise texture overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.4;
+}
+
+/* Gradient orb behind hero */
+.hero-glow {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(99,102,241,0.06) 0%, transparent 70%);
+  top: -200px;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
 }

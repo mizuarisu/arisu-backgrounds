@@ -1,9 +1,9 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
 import ThemeToggle from '@/components/ThemeToggle'
-import DatabaseManager from '@/components/DatabaseManager'
+import LogsViewer from '@/components/LogsViewer'
 
-export default function DatabasePage() {
+export default function LogsPage() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       <nav style={{ borderBottom: '1px solid var(--border)', backdropFilter: 'blur(12px)', background: 'rgba(13,13,15,0.8)', position: 'sticky', top: 0, zIndex: 50 }}>
@@ -17,8 +17,8 @@ export default function DatabasePage() {
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
             <Link href="/" style={{ fontSize: 13, color: 'var(--fg-2)', textDecoration: 'none' }}>Checker</Link>
-            <Link href="/database" style={{ fontSize: 13, color: 'var(--accent-2)', fontWeight: 500, textDecoration: 'none' }}>Database</Link>
-            <Link href="/logs" style={{ fontSize: 13, color: 'var(--fg-2)', textDecoration: 'none' }}>Logs</Link>
+            <Link href="/database" style={{ fontSize: 13, color: 'var(--fg-2)', textDecoration: 'none' }}>Database</Link>
+            <Link href="/logs" style={{ fontSize: 13, color: 'var(--accent-2)', fontWeight: 500, textDecoration: 'none' }}>Logs</Link>
             <ThemeToggle />
           </div>
         </div>
@@ -26,19 +26,19 @@ export default function DatabasePage() {
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '64px 24px 80px' }}>
         <div style={{ marginBottom: 48 }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)', borderRadius: 99, padding: '4px 12px', marginBottom: 20 }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--red)', boxShadow: '0 0 6px var(--red)' }} />
-            <span style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'var(--fg-2)', letterSpacing: '0.05em' }}>BLACKLIST DATABASE</span>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--blue-bg)', border: '1px solid var(--blue-border)', borderRadius: 99, padding: '4px 12px', marginBottom: 20 }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--blue)', boxShadow: '0 0 6px var(--blue)' }} />
+            <span style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'var(--fg-2)', letterSpacing: '0.05em' }}>SYSTEM LOGS</span>
           </div>
           <h1 style={{ fontSize: 40, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--fg)', marginBottom: 12 }}>
-            Manage Database
+            Activity Log
           </h1>
           <p style={{ fontSize: 15, color: 'var(--fg-2)', maxWidth: 480 }}>
-            All blacklist entries are shared across sessions and persist server-side in MongoDB.
+            Tracks lookups, database changes, and errors across all sessions. Stored server-side in MongoDB.
           </p>
         </div>
         <Suspense>
-          <DatabaseManager />
+          <LogsViewer />
         </Suspense>
       </div>
     </div>

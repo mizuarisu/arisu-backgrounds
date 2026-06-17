@@ -10,6 +10,7 @@ import {
   getUserThumbnails,
   getUserAvatar,
 } from '@/lib/roblox'
+import { logEvent } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
@@ -62,6 +63,17 @@ export async function GET(req: NextRequest) {
       if (yr) badgeYears[yr] = (badgeYears[yr] || 0) + 1
     })
 
+    if (badges.status === 'rejected') {
+      logEvent('warn', 'badge_fetch', `Badge fetch failed for ${user.name}`, { userId: uid, error: String(badges.reason) })
+    }
+
+    logEvent('info', 'player_lookup', `Lookup succeeded for ${user.name}`, {
+      userId: uid,
+      friends: friendsData.length,
+      groups: groupsData.length,
+      badges: badgesData.length,
+    })
+
     return NextResponse.json({
       user: { id: uid, name: user.name, displayName: user.displayName },
       profile: profileData,
@@ -78,6 +90,7 @@ export async function GET(req: NextRequest) {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     const status = message === 'User not found' ? 404 : 500
+    logEvent('error', 'player_lookup', `Lookup failed for "${username}": ${message}`, { username, status })
     return NextResponse.json({ error: message }, { status })
   }
 }
