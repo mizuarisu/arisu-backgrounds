@@ -8,9 +8,11 @@ import {
   getAvatar,
   getCollectibles,
   getUserThumbnails,
+  getUserAvatar,
 } from '@/lib/roblox'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 30
 
 export async function GET(req: NextRequest) {
   const username = req.nextUrl.searchParams.get('username')
@@ -22,13 +24,15 @@ export async function GET(req: NextRequest) {
     const user = await getUserByUsername(username)
     const uid = user.id
 
-    const [profile, friends, groups, badges, avatarAssets, collectibles] = await Promise.allSettled([
+    // Fetch profile avatar first so we have it
+    const [profile, friends, groups, badges, avatarAssets, collectibles, profileAvatar] = await Promise.allSettled([
       getUserProfile(uid),
       getFriends(uid),
       getGroups(uid),
       getAllBadges(uid),
       getAvatar(uid),
       getCollectibles(uid),
+      getUserAvatar(uid),
     ])
 
     const profileData = profile.status === 'fulfilled' ? profile.value : null
@@ -37,11 +41,15 @@ export async function GET(req: NextRequest) {
     const badgesData = badges.status === 'fulfilled' ? badges.value : []
     const avatarData = avatarAssets.status === 'fulfilled' ? avatarAssets.value : []
     const collectiblesData = collectibles.status === 'fulfilled' ? collectibles.value : []
+    const profileAvatarUrl = profileAvatar.status === 'fulfilled' ? profileAvatar.value : null
 
+    // Fetch friend thumbnails in batches (handles >100 friends)
     const friendIds = friendsData.map((f: { id: number }) => f.id)
     const thumbnails = friendIds.length > 0 ? await getUserThumbnails(friendIds) : []
     const thumbMap: Record<number, string> = {}
-    thumbnails.forEach((t: { targetId: number; imageUrl: string }) => { thumbMap[t.targetId] = t.imageUrl })
+    thumbnails.forEach((t: { targetId: number; imageUrl: string }) => {
+      if (t.imageUrl) thumbMap[t.targetId] = t.imageUrl
+    })
 
     const accessoryTypeIds = [41, 42, 43, 44, 45, 46, 47]
     const accessoryCount = avatarData.filter((a: { assetType: { id: number } }) =>
@@ -57,12 +65,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       user: { id: uid, name: user.name, displayName: user.displayName },
       profile: profileData,
+      profileAvatarUrl,
       friends: friendsData.map((f: { id: number; name: string; displayName: string }) => ({
         ...f,
         thumbnailUrl: thumbMap[f.id] || null,
       })),
       groups: groupsData,
-      badges: { total: badgesData.length, byYear: badgeYears, data: badgesData },
+      badges: { total: badgesData.length, byYear: badgeYears },
       accessories: accessoryCount,
       collectibles: collectiblesData.length,
     })

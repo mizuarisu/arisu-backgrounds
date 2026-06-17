@@ -2,7 +2,7 @@ const BASE = (sub: string) => `https://${sub}.roproxy.com`
 
 export async function getUserByUsername(username: string) {
   const res = await fetch(`${BASE('users')}/v1/usernames/users`, {
-    method: "POST",
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
     next: { revalidate: 0 },
@@ -36,10 +36,11 @@ export async function getGroups(uid: number) {
   }>
 }
 
+// Direct Roblox API, capped at 5 pages (500 badges) to avoid timeout
 export async function getAllBadges(uid: number) {
-  const allBadges: Array<{ id: number; name: string; created: string; updated: string }> = []
+  const allBadges: Array<{ id: number; name: string; created: string }> = []
   let cursor = ''
-  for (let page = 0; page < 25; page++) {
+  for (let page = 0; page < 5; page++) {
     const url = cursor
       ? `https://badges.roblox.com/v1/users/${uid}/badges?limit=100&sortOrder=Desc&cursor=${cursor}`
       : `https://badges.roblox.com/v1/users/${uid}/badges?limit=100&sortOrder=Desc`
@@ -51,7 +52,7 @@ export async function getAllBadges(uid: number) {
       allBadges.push(...data.data)
       if (!data.nextPageCursor) break
       cursor = data.nextPageCursor
-    } catch (e) {
+    } catch {
       break
     }
   }
@@ -72,10 +73,38 @@ export async function getCollectibles(uid: number) {
   return (data.data || []) as Array<{ assetId: number; name: string }>
 }
 
+// Fetch friend thumbnails in batches of 100
 export async function getUserThumbnails(userIds: number[]) {
   if (userIds.length === 0) return []
-  const res = await fetch(`${BASE('thumbnails')}/v1/users/avatar-headshot?userIds=${userIds.join(',')}&size=48x48&format=Png`, { next: { revalidate: 3600 } })
-  if (!res.ok) return []
-  const data = await res.json()
-  return (data.data || []) as Array<{ targetId: number; state: string; imageUrl: string }>
+  const results: Array<{ targetId: number; imageUrl: string }> = []
+  for (let i = 0; i < userIds.length; i += 100) {
+    const batch = userIds.slice(i, i + 100)
+    try {
+      const res = await fetch(
+        `${BASE('thumbnails')}/v1/users/avatar-headshot?userIds=${batch.join(',')}&size=48x48&format=Png`,
+        { next: { revalidate: 3600 } }
+      )
+      if (!res.ok) continue
+      const data = await res.json()
+      results.push(...(data.data || []))
+    } catch {
+      continue
+    }
+  }
+  return results
+}
+
+// Fetch the searched player's profile avatar (larger size)
+export async function getUserAvatar(uid: number) {
+  try {
+    const res = await fetch(
+      `${BASE('thumbnails')}/v1/users/avatar-headshot?userIds=${uid}&size=150x150&format=Png`,
+      { next: { revalidate: 3600 } }
+    )
+    if (!res.ok) return null
+    const data = await res.json()
+    return (data.data?.[0]?.imageUrl as string) || null
+  } catch {
+    return null
+  }
 }
