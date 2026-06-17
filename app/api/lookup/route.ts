@@ -39,7 +39,8 @@ export async function GET(req: NextRequest) {
     const profileData = profile.status === 'fulfilled' ? profile.value : null
     const friendsData = friends.status === 'fulfilled' ? friends.value : []
     const groupsData = groups.status === 'fulfilled' ? groups.value : []
-    const badgesData = badges.status === 'fulfilled' ? badges.value : []
+    const badgesResult = badges.status === 'fulfilled' ? badges.value : { badges: [], debug: badges.status === 'rejected' ? String(badges.reason) : undefined }
+    const badgesData = badgesResult.badges
     const avatarData = avatarAssets.status === 'fulfilled' ? avatarAssets.value : []
     const collectiblesData = collectibles.status === 'fulfilled' ? collectibles.value : []
     const profileAvatarUrl = profileAvatar.status === 'fulfilled' ? profileAvatar.value : null
@@ -63,8 +64,10 @@ export async function GET(req: NextRequest) {
       if (yr) badgeYears[yr] = (badgeYears[yr] || 0) + 1
     })
 
-    if (badges.status === 'rejected') {
-      logEvent('warn', 'badge_fetch', `Badge fetch failed for ${user.name}`, { userId: uid, error: String(badges.reason) })
+    if (badgesResult.debug || badgesData.length === 0) {
+      logEvent('warn', 'badge_fetch', `Badge fetch returned 0 results for ${user.name}`, { userId: uid, debug: badgesResult.debug || 'no debug info — endpoint returned empty data array' })
+    } else {
+      logEvent('info', 'badge_fetch', `Fetched ${badgesData.length} badges for ${user.name}`, { userId: uid, count: badgesData.length })
     }
 
     logEvent('info', 'player_lookup', `Lookup succeeded for ${user.name}`, {

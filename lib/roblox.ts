@@ -37,26 +37,32 @@ export async function getGroups(uid: number) {
 }
 
 // Badges via roproxy, capped at 5 pages (500 badges) to avoid timeout
-export async function getAllBadges(uid: number) {
+export async function getAllBadges(uid: number): Promise<{ badges: Array<{ id: number; name: string; created: string }>; debug?: string }> {
   const allBadges: Array<{ id: number; name: string; created: string }> = []
   let cursor = ''
+  let debug: string | undefined
   for (let page = 0; page < 5; page++) {
     const url = cursor
       ? `${BASE('badges')}/v1/users/${uid}/badges?limit=100&sortOrder=Desc&cursor=${cursor}`
       : `${BASE('badges')}/v1/users/${uid}/badges?limit=100&sortOrder=Desc`
     try {
       const res = await fetch(url, { next: { revalidate: 0 } })
-      if (!res.ok) break
+      if (!res.ok) {
+        const body = await res.text().catch(() => '')
+        debug = `HTTP ${res.status} on page ${page}: ${body.slice(0, 300)}`
+        break
+      }
       const data = await res.json()
       if (!data.data || data.data.length === 0) break
       allBadges.push(...data.data)
       if (!data.nextPageCursor) break
       cursor = data.nextPageCursor
-    } catch {
+    } catch (e) {
+      debug = `Fetch threw on page ${page}: ${e instanceof Error ? e.message : String(e)}`
       break
     }
   }
-  return allBadges
+  return { badges: allBadges, debug }
 }
 
 export async function getAvatar(uid: number) {
