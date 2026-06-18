@@ -4,7 +4,7 @@ import {
   getUserProfile,
   getFriends,
   getGroups,
-  getAllBadges,
+  getBadgeCount,
   getAvatar,
   getCollectibles,
   getUserThumbnails,
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
       getUserProfile(uid),
       getFriends(uid),
       getGroups(uid),
-      getAllBadges(uid),
+      getBadgeCount(uid),
       getAvatar(uid),
       getCollectibles(uid),
       getUserAvatar(uid),
@@ -39,8 +39,7 @@ export async function GET(req: NextRequest) {
     const profileData = profile.status === 'fulfilled' ? profile.value : null
     const friendsData = friends.status === 'fulfilled' ? friends.value : []
     const groupsData = groups.status === 'fulfilled' ? groups.value : []
-    const badgesResult = badges.status === 'fulfilled' ? badges.value : { badges: [], debug: badges.status === 'rejected' ? String(badges.reason) : undefined }
-    const badgesData = badgesResult.badges
+    const badgeResult = badges.status === 'fulfilled' ? badges.value : { count: 0, debug: badges.status === 'rejected' ? String(badges.reason) : undefined }
     const avatarData = avatarAssets.status === 'fulfilled' ? avatarAssets.value : []
     const collectiblesData = collectibles.status === 'fulfilled' ? collectibles.value : []
     const profileAvatarUrl = profileAvatar.status === 'fulfilled' ? profileAvatar.value : null
@@ -58,23 +57,17 @@ export async function GET(req: NextRequest) {
       accessoryTypeIds.includes(a.assetType?.id)
     ).length
 
-    const badgeYears: Record<string, number> = {}
-    badgesData.forEach((b: { created: string }) => {
-      const yr = b.created ? new Date(b.created).getFullYear().toString() : null
-      if (yr) badgeYears[yr] = (badgeYears[yr] || 0) + 1
-    })
-
-    if (badgesResult.debug || badgesData.length === 0) {
-      logEvent('warn', 'badge_fetch', `Badge fetch returned 0 results for ${user.name}`, { userId: uid, debug: badgesResult.debug || 'no debug info — endpoint returned empty data array' })
+    if (badgeResult.debug) {
+      logEvent('warn', 'badge_fetch', `Badge fetch issue for ${user.name}: ${badgeResult.debug}`, { userId: uid, debug: badgeResult.debug })
     } else {
-      logEvent('info', 'badge_fetch', `Fetched ${badgesData.length} badges for ${user.name}`, { userId: uid, count: badgesData.length })
+      logEvent('info', 'badge_fetch', `Fetched badge count ${badgeResult.count} for ${user.name}`, { userId: uid, count: badgeResult.count })
     }
 
     logEvent('info', 'player_lookup', `Lookup succeeded for ${user.name}`, {
       userId: uid,
       friends: friendsData.length,
       groups: groupsData.length,
-      badges: badgesData.length,
+      badges: badgeResult.count,
     })
 
     return NextResponse.json({
@@ -86,7 +79,7 @@ export async function GET(req: NextRequest) {
         thumbnailUrl: thumbMap[f.id] || null,
       })),
       groups: groupsData,
-      badges: { total: badgesData.length, byYear: badgeYears },
+      badgeCount: badgeResult.count,
       accessories: accessoryCount,
       collectibles: collectiblesData.length,
     })

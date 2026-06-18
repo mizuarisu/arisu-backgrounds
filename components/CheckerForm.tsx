@@ -1,7 +1,5 @@
 'use client'
-import { useState, useCallback, useRef } from 'react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import html2canvas from 'html2canvas'
+import { useState, useCallback } from 'react'
 
 const TARGET_GROUP = 4219097
 const DIVISION_GROUPS = [812204725, 503346911, 34510781, 8310499, 5336916, 5351323, 5351327, 5336904, 33036871, 5336914]
@@ -12,7 +10,7 @@ interface PlayerData {
   profileAvatarUrl: string | null
   friends: Array<{ id: number; name: string; displayName: string; thumbnailUrl: string | null }>
   groups: Array<{ group: { id: number; name: string; memberCount: number }; role: { name: string; rank: number } }>
-  badges: { total: number; byYear: Record<string, number> }
+  badgeCount: number
   accessories: number
   collectibles: number
 }
@@ -53,7 +51,7 @@ function SectionLabel({ children, emoji }: { children: React.ReactNode; emoji?: 
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
       {emoji && <span style={{ fontSize: 14 }}>{emoji}</span>}
       <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)', fontFamily: 'Quicksand, sans-serif' }}>{children}</span>
-      <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+      <div className="dotted-divider" style={{ flex: 1 }} />
     </div>
   )
 }
@@ -81,6 +79,17 @@ function AvatarImg({ src, name, size = 40, flagged = false }: { src: string | nu
   )
 }
 
+// Animated count-up number for the stat tiles
+function CountUp({ value, emoji, label }: { value: number; emoji: string; label: string }) {
+  return (
+    <div className="count-pop" style={{ textAlign: 'center', padding: '10px 16px', background: 'var(--bg-2)', borderRadius: 14, boxShadow: 'var(--shadow-sm)' }}>
+      <div style={{ fontSize: 13 }}>{emoji}</div>
+      <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', letterSpacing: '-0.02em' }}>{value}</div>
+      <div style={{ fontSize: 10.5, color: 'var(--fg-3)', fontWeight: 600 }}>{label}</div>
+    </div>
+  )
+}
+
 // ── Main Component ───────────────────────────────────────────
 export default function CheckerForm() {
   const [username, setUsername] = useState('')
@@ -90,8 +99,6 @@ export default function CheckerForm() {
   const [blacklist, setBlacklist] = useState<{ users: BlacklistEntry[]; groups: BlacklistEntry[] }>({ users: [], groups: [] })
   const [showAllFriends, setShowAllFriends] = useState(false)
   const [showAllGroups, setShowAllGroups] = useState(false)
-  const [exportingChart, setExportingChart] = useState(false)
-  const chartRef = useRef<HTMLDivElement>(null)
 
   const runCheck = useCallback(async () => {
     if (!username.trim()) return
@@ -121,21 +128,8 @@ export default function CheckerForm() {
   const divisionGroups = data?.groups.filter(g => DIVISION_GROUPS.includes(g.group.id)) || []
   const createdDate = data?.profile?.created ? new Date(data.profile.created) : null
   const accountAge = createdDate ? Math.floor((Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24 * 365)) : null
-  const badgeChartData = data ? Object.entries(data.badges.byYear).sort(([a], [b]) => Number(a) - Number(b)).map(([year, badges]) => ({ year, badges })) : []
   const friendsToShow = showAllFriends ? data?.friends || [] : (data?.friends || []).slice(0, 40)
   const groupsToShow = showAllGroups ? data?.groups || [] : (data?.groups || []).slice(0, 25)
-
-  const exportChart = async () => {
-    if (!chartRef.current) return
-    setExportingChart(true)
-    try {
-      const canvas = await html2canvas(chartRef.current, { backgroundColor: '#ffffff', scale: 2, useCORS: true })
-      const a = document.createElement('a')
-      a.href = canvas.toDataURL('image/png')
-      a.download = `${data?.user.name}-badges.png`
-      a.click()
-    } catch { alert('Export failed') } finally { setExportingChart(false) }
-  }
 
   return (
     <div>
@@ -158,9 +152,9 @@ export default function CheckerForm() {
           <button
             onClick={runCheck}
             disabled={loading || !username.trim()}
-            style={{ padding: '14px 30px', fontSize: 14.5, fontWeight: 700, background: loading ? 'var(--lavender-light)' : 'linear-gradient(135deg, var(--red), var(--lavender-deep))', color: '#fff', border: 'none', borderRadius: 14, cursor: loading || !username.trim() ? 'not-allowed' : 'pointer', opacity: !username.trim() ? 0.5 : 1, transition: 'all 0.2s', fontFamily: 'Quicksand, sans-serif', whiteSpace: 'nowrap', boxShadow: 'var(--shadow-sm)' }}
+            style={{ padding: '14px 30px', fontSize: 14.5, fontWeight: 700, background: loading ? 'var(--lavender-light)' : 'linear-gradient(135deg, var(--red), var(--lavender-deep))', color: '#fff', border: 'none', borderRadius: 14, cursor: loading || !username.trim() ? 'not-allowed' : 'pointer', opacity: !username.trim() ? 0.5 : 1, transition: 'all 0.2s', fontFamily: 'Quicksand, sans-serif', whiteSpace: 'nowrap', boxShadow: 'var(--shadow-sm)', display: 'flex', alignItems: 'center', gap: 8 }}
           >
-            {loading ? '✨ Checking…' : '🔍 Run Check'}
+            {loading ? <><span className="spin-slow" style={{ display: 'inline-block' }}>✨</span> Checking…</> : <>🔍 Run Check</>}
           </button>
           {data && (
             <button onClick={() => { setData(null); setError(''); setUsername('') }} style={{ padding: '14px 18px', fontSize: 13, color: 'var(--fg-3)', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 14, cursor: 'pointer', fontFamily: 'Outfit, sans-serif' }}>
@@ -187,8 +181,8 @@ export default function CheckerForm() {
             <div className="skeleton" style={{ height: 100 }} />
           </div>
           <div className="skeleton" style={{ height: 80 }} />
-          <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--fg-3)', fontSize: 13 }}>
-            🔮 Fetching player data…
+          <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--fg-3)', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <span className="sparkle-anim">🔮</span> Fetching player data…
           </div>
         </div>
       )}
@@ -218,11 +212,12 @@ export default function CheckerForm() {
           })}
 
           {/* Profile Hero Card */}
-          <Card style={{ background: 'linear-gradient(135deg, var(--bg-2), var(--bg-3))' }}>
-            <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <Card style={{ background: 'linear-gradient(135deg, var(--bg-2), var(--bg-3))', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: -40, right: -40, width: 140, height: 140, borderRadius: '50%', background: 'radial-gradient(circle, var(--pink-soft), transparent 70%)', opacity: 0.6 }} />
+            <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap', position: 'relative', zIndex: 1 }}>
               <div style={{ position: 'relative', flexShrink: 0 }}>
                 <AvatarImg src={data.profileAvatarUrl} name={data.user.name} size={84} />
-                <div style={{ position: 'absolute', bottom: -2, right: -2, width: 22, height: 22, borderRadius: '50%', background: riskScore >= 4 ? 'var(--red)' : riskScore >= 1 ? 'var(--amber)' : 'var(--green)', border: '3px solid var(--bg-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>
+                <div style={{ position: 'absolute', bottom: -2, right: -2, width: 22, height: 22, borderRadius: '50%', background: riskScore >= 4 ? 'var(--red)' : riskScore >= 1 ? 'var(--amber)' : 'var(--green)', border: '3px solid var(--bg-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#fff', fontWeight: 700 }}>
                   {riskScore >= 4 ? '!' : riskScore >= 1 ? '?' : '✓'}
                 </div>
               </div>
@@ -242,21 +237,13 @@ export default function CheckerForm() {
               </div>
               {/* Stats */}
               <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                {[
-                  { label: 'Friends', val: data.friends.length, emoji: '👥' },
-                  { label: 'Groups', val: data.groups.length, emoji: '🏷️' },
-                  { label: 'Badges', val: data.badges.total, emoji: '🏆' },
-                ].map(s => (
-                  <div key={s.label} style={{ textAlign: 'center', padding: '10px 16px', background: 'var(--bg-2)', borderRadius: 14, boxShadow: 'var(--shadow-sm)' }}>
-                    <div style={{ fontSize: 13 }}>{s.emoji}</div>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', letterSpacing: '-0.02em' }}>{s.val}</div>
-                    <div style={{ fontSize: 10.5, color: 'var(--fg-3)', fontWeight: 600 }}>{s.label}</div>
-                  </div>
-                ))}
+                <CountUp value={data.friends.length} emoji="👥" label="Friends" />
+                <CountUp value={data.groups.length} emoji="🏷️" label="Groups" />
+                <CountUp value={data.badgeCount} emoji="🏆" label="Badges" />
               </div>
             </div>
 
-            <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+            <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--border)', position: 'relative', zIndex: 1 }}>
               <DataRow label="Joined">
                 {createdDate ? createdDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}
                 {accountAge !== null && <Chip>{accountAge}y old</Chip>}
@@ -269,14 +256,14 @@ export default function CheckerForm() {
             </div>
           </Card>
 
-          {/* Two-col grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+          {/* Three-col grid: Target group / Inventory / Badges */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 18 }}>
             <Card>
               <SectionLabel emoji="🎯">Target Group</SectionLabel>
               {targetGroup ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <a href={`https://www.roblox.com/groups/${TARGET_GROUP}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: 'var(--fg)', fontWeight: 700, textDecoration: 'none' }}>{targetGroup.group.name}</a>
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     <Chip color="indigo">{targetGroup.role.name}</Chip>
                     <Chip>rank {targetGroup.role.rank}</Chip>
                   </div>
@@ -292,16 +279,29 @@ export default function CheckerForm() {
             <Card>
               <SectionLabel emoji="🎒">Inventory</SectionLabel>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                {[
-                  { label: 'Accessories', val: data.accessories, icon: '🎩' },
-                  { label: 'Collectibles', val: data.collectibles, icon: '💎' },
-                ].map(item => (
-                  <div key={item.label} style={{ background: 'var(--bg-3)', borderRadius: 14, padding: '12px 14px' }}>
-                    <div style={{ fontSize: 22 }}>{item.icon}</div>
-                    <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--fg)', letterSpacing: '-0.02em' }}>{item.val}</div>
-                    <div style={{ fontSize: 11, color: 'var(--fg-3)', fontWeight: 600 }}>{item.label}</div>
-                  </div>
-                ))}
+                <div style={{ background: 'var(--bg-3)', borderRadius: 14, padding: '12px 14px' }}>
+                  <div style={{ fontSize: 22 }}>🎩</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--fg)', letterSpacing: '-0.02em' }}>{data.accessories}</div>
+                  <div style={{ fontSize: 11, color: 'var(--fg-3)', fontWeight: 600 }}>Accessories</div>
+                </div>
+                <div style={{ background: 'var(--bg-3)', borderRadius: 14, padding: '12px 14px' }}>
+                  <div style={{ fontSize: 22 }}>💎</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--fg)', letterSpacing: '-0.02em' }}>{data.collectibles}</div>
+                  <div style={{ fontSize: 11, color: 'var(--fg-3)', fontWeight: 600 }}>Collectibles</div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Badge count tile — replaces the chart entirely */}
+            <Card style={{ background: 'linear-gradient(135deg, var(--blush), var(--bg-2))' }}>
+              <SectionLabel emoji="🏆">Total Badges</SectionLabel>
+              <div className="count-pop" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 0', gap: 4 }}>
+                <div style={{ fontSize: 38, fontWeight: 700, color: 'var(--fg)', letterSpacing: '-0.03em', fontFamily: 'Quicksand, sans-serif' }}>
+                  {data.badgeCount}
+                </div>
+                <div style={{ fontSize: 11.5, color: 'var(--fg-3)', fontWeight: 600 }}>
+                  {data.badgeCount >= 500 ? '500+ (capped)' : 'badges earned'}
+                </div>
               </div>
             </Card>
           </div>
@@ -383,49 +383,6 @@ export default function CheckerForm() {
             )}
           </Card>
 
-          {/* Badge Chart */}
-          <Card>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 14 }}>🏆</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg)', fontFamily: 'Quicksand, sans-serif' }}>Badges</span>
-                <Chip color="indigo">{data.badges.total} total</Chip>
-              </div>
-              <button
-                onClick={exportChart}
-                disabled={exportingChart || badgeChartData.length === 0}
-                style={{ fontSize: 12, color: 'var(--accent-2)', background: 'var(--blush)', border: 'none', borderRadius: 99, padding: '6px 14px', cursor: 'pointer', fontFamily: 'Outfit, sans-serif', fontWeight: 600, opacity: badgeChartData.length === 0 ? 0.5 : 1 }}
-              >
-                {exportingChart ? 'Exporting…' : '↓ Export PNG'}
-              </button>
-            </div>
-            {badgeChartData.length > 0 ? (
-              <div ref={chartRef} style={{ background: 'var(--bg-2)', padding: '16px 8px 8px', borderRadius: 16 }}>
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={badgeChartData} barCategoryGap="30%">
-                    <XAxis dataKey="year" tick={{ fontSize: 11, fill: 'var(--fg-3)' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: 'var(--fg-3)' }} axisLine={false} tickLine={false} width={32} />
-                    <Tooltip
-                      contentStyle={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 12, fontSize: 12, color: 'var(--fg)', boxShadow: 'var(--shadow-md)' }}
-                      cursor={{ fill: 'var(--blush)' }}
-                      labelStyle={{ color: 'var(--fg-2)' }}
-                    />
-                    <Bar dataKey="badges" radius={[8, 8, 0, 0]}>
-                      {badgeChartData.map((_, i) => (
-                        <Cell key={i} fill={i === badgeChartData.length - 1 ? 'var(--red)' : 'var(--pink-soft)'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--fg-3)', fontSize: 13 }}>
-                <div style={{ fontSize: 28, marginBottom: 8 }}>🔍</div>
-                No badge data found — check the Logs page for details if this seems wrong.
-              </div>
-            )}
-          </Card>
-
           {/* Conclusion */}
           <Card style={{ border: `1.5px solid ${riskScore >= 4 ? 'var(--red-border)' : riskScore >= 1 ? 'var(--amber-border)' : 'var(--green-border)'}` }}>
             <SectionLabel emoji="📝">Conclusion</SectionLabel>
@@ -444,7 +401,7 @@ export default function CheckerForm() {
 {`Player : ${data.profile?.displayName || data.user.name} (@${data.user.name})
 ID     : ${data.user.id}
 Age    : ${accountAge !== null ? accountAge + ' year(s)' : 'unknown'} · Status: ${data.profile?.isBanned ? 'BANNED' : 'Active'}
-Groups : ${data.groups.length}  Friends: ${data.friends.length}  Badges: ${data.badges.total}
+Groups : ${data.groups.length}  Friends: ${data.friends.length}  Badges: ${data.badgeCount}
 
 Target Group ${TARGET_GROUP}: ${targetGroup ? `✓ Member — ${targetGroup.role.name} (rank ${targetGroup.role.rank})` : '✗ Not a member'}
 Division Groups: ${divisionGroups.length > 0 ? divisionGroups.map(g => g.group.name).join(', ') : 'None'}
