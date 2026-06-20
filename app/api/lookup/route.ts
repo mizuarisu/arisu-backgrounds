@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     const profileData = profile.status === 'fulfilled' ? profile.value : null
     const friendsData = friends.status === 'fulfilled' ? friends.value : []
     const groupsData = groups.status === 'fulfilled' ? groups.value : []
-    const badgeResult = badges.status === 'fulfilled' ? badges.value : { count: 0, debug: badges.status === 'rejected' ? String(badges.reason) : undefined }
+    const badgeResult = badges.status === 'fulfilled' ? badges.value : { count: 0, debug: badges.status === 'rejected' ? String(badges.reason) : undefined, likelyPrivacyRestricted: false }
     const avatarData = avatarAssets.status === 'fulfilled' ? avatarAssets.value : []
     const collectiblesData = collectibles.status === 'fulfilled' ? collectibles.value : []
     const profileAvatarUrl = profileAvatar.status === 'fulfilled' ? profileAvatar.value : null
@@ -57,7 +57,9 @@ export async function GET(req: NextRequest) {
       accessoryTypeIds.includes(a.assetType?.id)
     ).length
 
-    if (badgeResult.debug) {
+    if (badgeResult.likelyPrivacyRestricted) {
+      logEvent('warn', 'badge_fetch', `Badge count for ${user.name} is likely 0 due to Roblox privacy restriction (unauthenticated access), not a real zero`, { userId: uid })
+    } else if (badgeResult.debug) {
       logEvent('warn', 'badge_fetch', `Badge fetch issue for ${user.name}: ${badgeResult.debug}`, { userId: uid, debug: badgeResult.debug })
     } else {
       logEvent('info', 'badge_fetch', `Fetched badge count ${badgeResult.count} for ${user.name}`, { userId: uid, count: badgeResult.count })
@@ -80,6 +82,7 @@ export async function GET(req: NextRequest) {
       })),
       groups: groupsData,
       badgeCount: badgeResult.count,
+      badgeRestricted: badgeResult.likelyPrivacyRestricted || false,
       accessories: accessoryCount,
       collectibles: collectiblesData.length,
     })

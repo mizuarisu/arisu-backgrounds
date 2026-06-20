@@ -36,9 +36,14 @@ export async function getGroups(uid: number) {
   }>
 }
 
-// Just fetch total badge count — single request, no pagination, no chart data needed.
-// Uses roproxy with the limit set high enough to capture most accounts in one call.
-export async function getBadgeCount(uid: number): Promise<{ count: number; debug?: string }> {
+// Badge count — single endpoint, no pagination needed for the common case.
+// NOTE: A March 2026 Roblox privacy change means the public badges listing
+// endpoint returns HTTP 200 with an empty `data: []` array (NOT an error) when
+// called without an authenticated session cookie — which is exactly what proxies
+// like roproxy do. This makes most accounts show 0 badges even though they have
+// some. We detect this specific signature (empty data + null cursors on a fresh
+// request) so the UI/logs can say *why* instead of displaying a misleading zero.
+export async function getBadgeCount(uid: number): Promise<{ count: number; debug?: string; likelyPrivacyRestricted?: boolean }> {
   const url = `${BASE('badges')}/v1/users/${uid}/badges?limit=100&sortOrder=Desc`
   try {
     const res = await fetch(url, { next: { revalidate: 0 } })
@@ -50,8 +55,14 @@ export async function getBadgeCount(uid: number): Promise<{ count: number; debug
     if (!Array.isArray(data.data)) {
       return { count: 0, debug: `Unexpected response shape: ${JSON.stringify(data).slice(0, 300)}` }
     }
-    // If there's a next page cursor, there are more than 100 — we just report "100+"
-    // by returning the actual fetched count plus a flag via debug for the logger.
+    if (data.data.length === 0 && data.previousPageCursor === null && data.nextPageCursor === null) {
+      // Exact signature of the unauthenticated-access restriction — not a real "0 badges".
+      return {
+        count: 0,
+        likelyPrivacyRestricted: true,
+        debug: 'Empty response with null cursors on first page — almost certainly blocked by the Roblox badge privacy change (Feb 2026 devforum announcement), which requires an authenticated session cookie that proxies cannot provide. This is not a bug in this app.',
+      }
+    }
     let total = data.data.length
     let cursor = data.nextPageCursor as string | null
     let pages = 1

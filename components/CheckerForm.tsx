@@ -11,6 +11,7 @@ interface PlayerData {
   friends: Array<{ id: number; name: string; displayName: string; thumbnailUrl: string | null }>
   groups: Array<{ group: { id: number; name: string; memberCount: number }; role: { name: string; rank: number } }>
   badgeCount: number
+  badgeRestricted: boolean
   accessories: number
   collectibles: number
 }
@@ -80,11 +81,11 @@ function AvatarImg({ src, name, size = 40, flagged = false }: { src: string | nu
 }
 
 // Animated count-up number for the stat tiles
-function CountUp({ value, emoji, label }: { value: number; emoji: string; label: string }) {
+function CountUp({ value, emoji, label, locked }: { value: number; emoji: string; label: string; locked?: boolean }) {
   return (
     <div className="count-pop" style={{ textAlign: 'center', padding: '10px 16px', background: 'var(--bg-2)', borderRadius: 14, boxShadow: 'var(--shadow-sm)' }}>
-      <div style={{ fontSize: 13 }}>{emoji}</div>
-      <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--fg)', letterSpacing: '-0.02em' }}>{value}</div>
+      <div style={{ fontSize: 13 }}>{locked ? '🔒' : emoji}</div>
+      <div style={{ fontSize: 20, fontWeight: 700, color: locked ? 'var(--fg-3)' : 'var(--fg)', letterSpacing: '-0.02em' }}>{locked ? '—' : value}</div>
       <div style={{ fontSize: 10.5, color: 'var(--fg-3)', fontWeight: 600 }}>{label}</div>
     </div>
   )
@@ -239,7 +240,7 @@ export default function CheckerForm() {
               <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                 <CountUp value={data.friends.length} emoji="👥" label="Friends" />
                 <CountUp value={data.groups.length} emoji="🏷️" label="Groups" />
-                <CountUp value={data.badgeCount} emoji="🏆" label="Badges" />
+                <CountUp value={data.badgeCount} emoji="🏆" label="Badges" locked={data.badgeRestricted} />
               </div>
             </div>
 
@@ -295,14 +296,26 @@ export default function CheckerForm() {
             {/* Badge count tile — replaces the chart entirely */}
             <Card style={{ background: 'linear-gradient(135deg, var(--blush), var(--bg-2))' }}>
               <SectionLabel emoji="🏆">Total Badges</SectionLabel>
-              <div className="count-pop" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 0', gap: 4 }}>
-                <div style={{ fontSize: 38, fontWeight: 700, color: 'var(--fg)', letterSpacing: '-0.03em', fontFamily: 'Quicksand, sans-serif' }}>
-                  {data.badgeCount}
+              {data.badgeRestricted ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '6px 0', gap: 6, textAlign: 'center' }}>
+                  <span style={{ fontSize: 22 }}>🔒</span>
+                  <div style={{ fontSize: 12, color: 'var(--fg-2)', fontWeight: 600, lineHeight: 1.4 }}>
+                    Hidden by Roblox
+                  </div>
+                  <div style={{ fontSize: 10.5, color: 'var(--fg-3)', lineHeight: 1.5 }}>
+                    Badge visibility now requires an authenticated session — see Logs for details.
+                  </div>
                 </div>
-                <div style={{ fontSize: 11.5, color: 'var(--fg-3)', fontWeight: 600 }}>
-                  {data.badgeCount >= 500 ? '500+ (capped)' : 'badges earned'}
+              ) : (
+                <div className="count-pop" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 0', gap: 4 }}>
+                  <div style={{ fontSize: 38, fontWeight: 700, color: 'var(--fg)', letterSpacing: '-0.03em', fontFamily: 'Quicksand, sans-serif' }}>
+                    {data.badgeCount}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: 'var(--fg-3)', fontWeight: 600 }}>
+                    {data.badgeCount >= 500 ? '500+ (capped)' : 'badges earned'}
+                  </div>
                 </div>
-              </div>
+              )}
             </Card>
           </div>
 
@@ -401,7 +414,7 @@ export default function CheckerForm() {
 {`Player : ${data.profile?.displayName || data.user.name} (@${data.user.name})
 ID     : ${data.user.id}
 Age    : ${accountAge !== null ? accountAge + ' year(s)' : 'unknown'} · Status: ${data.profile?.isBanned ? 'BANNED' : 'Active'}
-Groups : ${data.groups.length}  Friends: ${data.friends.length}  Badges: ${data.badgeCount}
+Groups : ${data.groups.length}  Friends: ${data.friends.length}  Badges: ${data.badgeRestricted ? 'hidden (Roblox privacy)' : data.badgeCount}
 
 Target Group ${TARGET_GROUP}: ${targetGroup ? `✓ Member — ${targetGroup.role.name} (rank ${targetGroup.role.rank})` : '✗ Not a member'}
 Division Groups: ${divisionGroups.length > 0 ? divisionGroups.map(g => g.group.name).join(', ') : 'None'}

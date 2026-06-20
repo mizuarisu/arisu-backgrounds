@@ -4,7 +4,7 @@
 @tailwind utilities;
 
 :root {
-  /* Pastel palette from reference */
+  /* Pastel palette (light theme, default) */
   --pink: #ffc9c9;
   --pink-soft: #ffd9d9;
   --blush: #fde2e2;
@@ -48,9 +48,61 @@
   --shadow-md: 0 4px 16px rgba(140,135,166,0.10), 0 1px 3px rgba(140,135,166,0.06);
   --shadow-lg: 0 12px 32px rgba(140,135,166,0.14), 0 2px 6px rgba(140,135,166,0.08);
   --shadow-glow: 0 0 0 4px rgba(255,201,201,0.35);
+
+  color-scheme: light;
+  transition: background-color 0.3s ease;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+/* Night mode — black & red */
+[data-theme="dark"] {
+  --pink: #ff3b4e;
+  --pink-soft: #ff5c6c;
+  --blush: #2a1014;
+  --cream: #161616;
+  --lavender: #ff3b4e;
+  --lavender-deep: #c81e30;
+  --lavender-light: #ff7080;
+
+  --bg: #0a0a0b;
+  --bg-2: #131314;
+  --bg-3: #1a1a1c;
+  --bg-4: #221b1d;
+  --border: #2a2426;
+  --border-2: #3d3033;
+
+  --fg: #f2eeee;
+  --fg-2: #b8acae;
+  --fg-3: #786e70;
+
+  --accent: #ff3b4e;
+  --accent-2: #ff5c6c;
+  --accent-glow: rgba(255,59,78,0.18);
+
+  --red: #ff3b4e;
+  --red-bg: #2a1014;
+  --red-border: #5c2128;
+
+  --amber: #e8a33e;
+  --amber-bg: #2a2014;
+  --amber-border: #5c4a28;
+
+  --green: #3ecb8a;
+  --green-bg: #102a1c;
+  --green-border: #1f5c3c;
+
+  --blue: #5c8fff;
+  --blue-bg: #10182a;
+  --blue-border: #28395c;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.4), 0 1px 1px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 20px rgba(255,59,78,0.08), 0 2px 8px rgba(0,0,0,0.5);
+  --shadow-lg: 0 16px 40px rgba(255,59,78,0.12), 0 4px 12px rgba(0,0,0,0.6);
+  --shadow-glow: 0 0 0 4px rgba(255,59,78,0.25);
+
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease; }
 
 html, body {
   background: var(--bg);
@@ -59,6 +111,7 @@ html, body {
   -webkit-font-smoothing: antialiased;
   font-size: 15px;
   line-height: 1.6;
+  transition: background-color 0.35s ease, color 0.35s ease;
 }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -169,4 +222,28 @@ input::placeholder { color: var(--fg-3); }
   height: 1px;
   background-image: radial-gradient(circle, var(--border-2) 1px, transparent 1px);
   background-size: 6px 1px;
+}
+
+/* Subtle grid backdrop for a more "professional tool" feel */
+.grid-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 48px 48px;
+  opacity: 0.35;
+  mask-image: radial-gradient(ellipse 70% 50% at 50% 0%, black 40%, transparent 100%);
+}
+
+/* Red glow for dark mode accents — no-op visually in light mode since shadow is tiny */
+.glow-accent {
+  box-shadow: 0 0 24px var(--accent-glow);
+}
+
+[data-theme="dark"] .blob {
+  filter: blur(70px);
+  mix-blend-mode: screen;
 }
