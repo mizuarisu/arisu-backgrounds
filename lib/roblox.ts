@@ -66,7 +66,7 @@ async function getBadgeCountLegacy(uid: number): Promise<{ count: number; debug?
     let total = data.data.length
     let cursor = data.nextPageCursor ?? null
     let pages = 1
-    while (cursor && pages < 5) {
+    while (cursor && pages < 50) {
       const nextRes = await fetch(`${url}&cursor=${cursor}`, { next: { revalidate: 0 } })
       if (!nextRes.ok) break
       const nextData = await nextRes.json()
@@ -90,7 +90,7 @@ async function getBadgeCountOpenCloud(uid: number, apiKey: string): Promise<{ co
   let total = 0
   let pageToken = ''
   let pages = 0
-  const maxPages = 10 // up to 1000 badges at maxPageSize=100
+  const maxPages = 50 // up to 5000 badges at maxPageSize=100
 
   try {
     while (pages < maxPages) {
