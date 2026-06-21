@@ -20,23 +20,33 @@ Create `.env.local`:
 
 ```env
 MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/roblox-checker?retryWrites=true&w=majority
+ROBLOX_OPEN_CLOUD_KEY=<your-open-cloud-api-key>
 ```
 
 ```bash
 npm run dev
 ```
 
-Deploy to Vercel with the same `MONGODB_URI` env var set in the project settings.
+Deploy to Vercel with both env vars set in the project settings.
 
-## ⚠️ Known limitation: badge counts
+## Badge counts
 
-As of a Roblox platform change rolled out in February–March 2026, the public badge-listing endpoint (`badges.roblox.com/v1/users/{userId}/badges`) now requires an **authenticated Roblox session cookie** to return real data for most accounts. When called without one — which is what this app does, since it has no way to log in as a Roblox account — Roblox returns a `200 OK` with an empty result instead of an error.
+Badge counts are fetched two ways, depending on whether `ROBLOX_OPEN_CLOUD_KEY` is set:
 
-This means **badge counts will show as "Hidden by Roblox" for most players**, and this isn't fixable from our side without building actual Roblox account authentication (logging in with a real account's cookie and refreshing it periodically), which carries its own risks (ToS, account bans, cookie expiry).
+- **With a key configured** — uses Roblox's [Open Cloud Inventory API](https://create.roblox.com/docs/cloud/guides/inventory) (`apis.roblox.com/cloud/v2/users/{userId}/inventory-items?filter=badges=true`), authenticated via an `x-api-key` header. This is the documented, stable path.
+- **Without a key** — falls back to the legacy public endpoint (`badges.roblox.com/v1/users/{userId}/badges`) via roproxy, with no authentication. This endpoint's reliability has varied across 2025–2026 Roblox platform changes and may return empty results for some accounts even when the account does have badges.
 
-The app detects this exact signature and tells you clearly in the UI rather than silently showing a misleading "0". Check the **Logs** page after any lookup — entries tagged `badge_fetch` will say whether a badge count is real, restricted, or failed for another reason (e.g. rate limiting, network issue).
+### Getting an Open Cloud API key
 
-If you want badge data back, the long-term fix is migrating to Roblox's **Open Cloud Badges API**, which supports proper API keys instead of cookies — but that requires per-experience API keys tied to specific games, not a general "look up any player's total badges" use case, so it doesn't directly replace what this tool was doing.
+1. Go to [create.roblox.com/dashboard/credentials](https://create.roblox.com/dashboard/credentials)
+2. Open the **API Keys** tab → **Create API Key**
+3. Add the **User Inventory API** permission with **Read** access (no need to scope it to a specific experience — this is a user-resource permission)
+4. Leave IP restrictions blank if deploying on Vercel (dynamic IPs)
+5. Save, copy the key immediately (shown once), and set it as `ROBLOX_OPEN_CLOUD_KEY` in both `.env.local` (local dev) and Vercel's environment variables (production)
+
+**Keep this key private** — treat it like a password. Don't commit it to git or paste it anywhere public; `.env.local` is already gitignored.
+
+If badge counts still look wrong after setting the key, check the **Logs** page — every `badge_fetch` entry includes which source (`opencloud` or `legacy`) was used and the raw debug info if something failed.
 
 ## Project structure
 
@@ -46,7 +56,7 @@ app/
   database/page.tsx  — Blacklist manager page
   logs/page.tsx      — Activity log viewer
   api/
-    lookup/          — Roblox data fetch (server-side, via roproxy)
+    lookup/          — Roblox data fetch (server-side, via roproxy + Open Cloud)
     database/        — Blacklist CRUD (MongoDB)
     logs/            — Log read/clear (MongoDB)
 components/
@@ -55,10 +65,10 @@ components/
   LogsViewer.tsx
   ThemeToggle.tsx    — Light/dark mode switch
 lib/
-  roblox.ts          — Roblox API helpers
+  roblox.ts          — Roblox API helpers (badges, profile, friends, groups)
   database.ts        — Blacklist persistence (MongoDB)
   logger.ts          — Activity logging (MongoDB)
-  mongodb.ts         — Connection helper
+  mongodb.ts          — Connection helper
 ```
 
 ## Configuration

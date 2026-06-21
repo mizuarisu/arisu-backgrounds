@@ -36,35 +36,35 @@ export async function getGroups(uid: number) {
   }>
 }
 
-// Badge count — single endpoint, no pagination needed for the common case.
-// NOTE: A March 2026 Roblox privacy change means the public badges listing
-// endpoint returns HTTP 200 with an empty `data: []` array (NOT an error) when
-// called without an authenticated session cookie — which is exactly what proxies
-// like roproxy do. This makes most accounts show 0 badges even though they have
-// some. We detect this specific signature (empty data + null cursors on a fresh
-// request) so the UI/logs can say *why* instead of displaying a misleading zero.
-export async function getBadgeCount(uid: number): Promise<{ count: number; debug?: string; likelyPrivacyRestricted?: boolean }> {
+// Legacy badge count via the public listing endpoint, proxied through roproxy.
+// Kept as a fallback for when no Open Cloud API key is configured.
+async function getBadgeCountLegacy(uid: number): Promise<{ count: number; debug?: string }> {
   const url = `${BASE('badges')}/v1/users/${uid}/badges?limit=100&sortOrder=Desc`
   try {
     const res = await fetch(url, { next: { revalidate: 0 } })
+    const rawBody = await res.text()
+
     if (!res.ok) {
-      const body = await res.text().catch(() => '')
-      return { count: 0, debug: `HTTP ${res.status}: ${body.slice(0, 300)}` }
+      return { count: 0, debug: `[legacy] [${url}] → HTTP ${res.status}: ${rawBody.slice(0, 300)}` }
     }
-    const data = await res.json()
+
+    let data: { data?: unknown[]; nextPageCursor?: string | null }
+    try {
+      data = JSON.parse(rawBody)
+    } catch {
+      return { count: 0, debug: `[legacy] [${url}] → response was not valid JSON: ${rawBody.slice(0, 300)}` }
+    }
+
     if (!Array.isArray(data.data)) {
-      return { count: 0, debug: `Unexpected response shape: ${JSON.stringify(data).slice(0, 300)}` }
+      return { count: 0, debug: `[legacy] [${url}] → response JSON had no "data" array: ${rawBody.slice(0, 300)}` }
     }
-    if (data.data.length === 0 && data.previousPageCursor === null && data.nextPageCursor === null) {
-      // Exact signature of the unauthenticated-access restriction — not a real "0 badges".
-      return {
-        count: 0,
-        likelyPrivacyRestricted: true,
-        debug: 'Empty response with null cursors on first page — almost certainly blocked by the Roblox badge privacy change (Feb 2026 devforum announcement), which requires an authenticated session cookie that proxies cannot provide. This is not a bug in this app.',
-      }
+
+    if (data.data.length === 0) {
+      return { count: 0, debug: `[legacy] [${url}] → 0 badges returned, raw body: ${rawBody.slice(0, 300)}` }
     }
+
     let total = data.data.length
-    let cursor = data.nextPageCursor as string | null
+    let cursor = data.nextPageCursor ?? null
     let pages = 1
     while (cursor && pages < 5) {
       const nextRes = await fetch(`${url}&cursor=${cursor}`, { next: { revalidate: 0 } })
@@ -77,8 +77,73 @@ export async function getBadgeCount(uid: number): Promise<{ count: number; debug
     }
     return { count: total }
   } catch (e) {
-    return { count: 0, debug: `Fetch threw: ${e instanceof Error ? e.message : String(e)}` }
+    return { count: 0, debug: `[legacy] Fetch threw an exception: ${e instanceof Error ? e.message : String(e)}` }
   }
+}
+
+// Badge count via the Roblox Open Cloud Inventory API (apis.roblox.com/cloud/v2).
+// Requires an API key with "User Inventory API" read permission, set as
+// ROBLOX_OPEN_CLOUD_KEY in env vars. Uses x-api-key header auth — not a cookie —
+// so it isn't affected by the legacy badges.roblox.com privacy/auth changes.
+// Docs: https://create.roblox.com/docs/cloud/guides/inventory
+async function getBadgeCountOpenCloud(uid: number, apiKey: string): Promise<{ count: number; debug?: string }> {
+  let total = 0
+  let pageToken = ''
+  let pages = 0
+  const maxPages = 10 // up to 1000 badges at maxPageSize=100
+
+  try {
+    while (pages < maxPages) {
+      const params = new URLSearchParams({
+        filter: 'badges=true',
+        maxPageSize: '100',
+      })
+      if (pageToken) params.set('pageToken', pageToken)
+
+      const url = `https://apis.roblox.com/cloud/v2/users/${uid}/inventory-items?${params.toString()}`
+      const res = await fetch(url, {
+        headers: { 'x-api-key': apiKey },
+        next: { revalidate: 0 },
+      })
+      const rawBody = await res.text()
+
+      if (!res.ok) {
+        return { count: total, debug: `[opencloud] [${url}] → HTTP ${res.status}: ${rawBody.slice(0, 300)}` }
+      }
+
+      let data: { inventoryItems?: unknown[]; nextPageToken?: string }
+      try {
+        data = JSON.parse(rawBody)
+      } catch {
+        return { count: total, debug: `[opencloud] response was not valid JSON: ${rawBody.slice(0, 300)}` }
+      }
+
+      if (!Array.isArray(data.inventoryItems)) {
+        return { count: total, debug: `[opencloud] response JSON had no "inventoryItems" array: ${rawBody.slice(0, 300)}` }
+      }
+
+      total += data.inventoryItems.length
+      pages++
+
+      if (!data.nextPageToken) break
+      pageToken = data.nextPageToken
+    }
+    return { count: total }
+  } catch (e) {
+    return { count: total, debug: `[opencloud] Fetch threw an exception: ${e instanceof Error ? e.message : String(e)}` }
+  }
+}
+
+// Public entry point. Uses Open Cloud if an API key is configured, otherwise
+// falls back to the legacy unauthenticated endpoint via roproxy.
+export async function getBadgeCount(uid: number): Promise<{ count: number; debug?: string; source: 'opencloud' | 'legacy' }> {
+  const apiKey = process.env.ROBLOX_OPEN_CLOUD_KEY
+  if (apiKey) {
+    const result = await getBadgeCountOpenCloud(uid, apiKey)
+    return { ...result, source: 'opencloud' }
+  }
+  const result = await getBadgeCountLegacy(uid)
+  return { ...result, source: 'legacy' }
 }
 
 export async function getAvatar(uid: number) {
