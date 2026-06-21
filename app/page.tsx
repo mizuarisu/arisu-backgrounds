@@ -51,7 +51,7 @@ export default function Home() {
             <span className="gradient-text">Check Tool</span>
           </h1>
           <p className="animate-in" style={{ animationDelay: '0.1s', fontSize: 16, color: 'var(--fg-2)', maxWidth: 480, lineHeight: 1.7, marginBottom: 8 }}>
-            Investigate any Roblox player — groups, friends, badge count — and cross-reference them against your blacklist database in seconds.
+            Background check any Roblox player — groups, friends, badge count — and cross-reference them against your blacklist database in seconds.
           </p>
         </div>
       </div>
@@ -66,8 +66,8 @@ export default function Home() {
       {/* Footer */}
       <footer style={{ borderTop: '1px solid var(--border)', position: 'relative', zIndex: 1 }}>
         <div style={{ maxWidth: 920, margin: '0 auto', padding: '24px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 12, color: 'var(--fg-3)' }}>BGCheck v3.1</span>
-          <span style={{ fontSize: 12, color: 'var(--fg-3)' }}>roproxy.com</span>
+          <span style={{ fontSize: 12, color: 'var(--fg-3)' }}>Arisu Background Check E:3.1</span>
+          <span style={{ fontSize: 12, color: 'var(--fg-3)' }}>Powered by Roproxy & Vercel</span>
         </div>
       </footer>
     </div>
