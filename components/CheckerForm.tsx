@@ -406,8 +406,8 @@ Groups : ${data.groups.length}  Friends: ${data.friends.length}  Badges: ${data.
 Target Group ${TARGET_GROUP}: ${targetGroup ? `✓ Member — ${targetGroup.role.name} (rank ${targetGroup.role.rank})` : '✗ Not a member'}
 Division Groups: ${divisionGroups.length > 0 ? divisionGroups.map(g => g.group.name).join(', ') : 'None'}
 
-Flagged Friends: ${flaggedFriends.length > 0 ? flaggedFriends.map(f => f.name).join(', ') : 'None'}
-Flagged Groups : ${flaggedGroups.length > 0 ? flaggedGroups.map(g => g.group.name).join(', ') : 'None'}`}
+Flagged Friends: ${flaggedFriends.length > 0 ? flaggedFriends.map(f => f.name || `User ${f.id}`).join(', ') : 'None'}
+Flagged Groups : ${flaggedGroups.length > 0 ? flaggedGroups.map(g => g.group.name || `Group ${g.group.id}`).join(', ') : 'None'}`}
             </pre>
           </Card>
         </div>

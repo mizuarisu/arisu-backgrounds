@@ -23,7 +23,17 @@ export async function getFriends(uid: number) {
   const res = await fetch(`${BASE('friends')}/v1/users/${uid}/friends`, { next: { revalidate: 0 } })
   if (!res.ok) return []
   const data = await res.json()
-  return (data.data || []) as Array<{ id: number; name: string; displayName: string }>
+  const raw = (data.data || []) as Array<Record<string, unknown>>
+  // Defensively normalize: some Roblox friend payloads have used different
+  // casing/fields over time (name vs displayName vs username). Guarantee every
+  // friend object has a usable, non-empty `name` so UI text never silently
+  // renders blank (e.g. in the Conclusion summary).
+  return raw.map(f => {
+    const id = Number(f.id ?? f.userId ?? 0)
+    const name = (f.name as string) || (f.username as string) || (f.displayName as string) || `User ${id}`
+    const displayName = (f.displayName as string) || name
+    return { id, name, displayName }
+  })
 }
 
 export async function getGroups(uid: number) {
