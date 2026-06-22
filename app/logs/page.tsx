@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import ThemeToggle from '@/components/ThemeToggle'
 import LogsViewer from '@/components/LogsViewer'
+import LogoutButton from '@/components/LogoutButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,7 +37,7 @@ export default function LogsPage() {
             <Link href="/logs" style={navLinkStyle(true)}>Logs</Link>
             <Link href="/admin/users" style={navLinkStyle(false)}>Users</Link>
             <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 6px' }} />
-            <button onClick={() => { fetch('/api/auth/logout', { method: 'POST' }).then(() => window.location.href = '/login') }} style={{ fontSize: 13.5, color: 'var(--fg-2)', fontWeight: 500, textDecoration: 'none', padding: '6px 14px', borderRadius: 99, background: 'transparent', border: 'none', cursor: 'pointer' }}>Logout</button>
+            <LogoutButton />
             <ThemeToggle />
           </div>
         </div>
