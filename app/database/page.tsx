@@ -1,7 +1,10 @@
+'use client'
 import { Suspense } from 'react'
 import Link from 'next/link'
 import ThemeToggle from '@/components/ThemeToggle'
 import DatabaseManager from '@/components/DatabaseManager'
+
+export const dynamic = 'force-dynamic'
 
 const navLinkStyle = (active: boolean): React.CSSProperties => ({
   fontSize: 13.5,

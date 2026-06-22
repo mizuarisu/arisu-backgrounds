@@ -1,11 +1,11 @@
-import { getDb } from './mongodb'
+import { connectToDatabase } from './mongodb'
 import { User, UserRole, hashPassword } from './auth'
 import { randomBytes } from 'crypto'
 
 const COLLECTION_NAME = 'users'
 
 export async function createUser(username: string, password: string, role: UserRole): Promise<User> {
-  const db = await getDb()
+  const { db } = await connectToDatabase()
   const collection = db.collection(COLLECTION_NAME)
 
   // Check if user already exists
@@ -27,32 +27,32 @@ export async function createUser(username: string, password: string, role: UserR
 }
 
 export async function getUserByUsername(username: string): Promise<User | null> {
-  const db = await getDb()
+  const { db } = await connectToDatabase()
   const collection = db.collection(COLLECTION_NAME)
   return (await collection.findOne({ username })) as User | null
 }
 
 export async function getUserById(id: string): Promise<User | null> {
-  const db = await getDb()
+  const { db } = await connectToDatabase()
   const collection = db.collection(COLLECTION_NAME)
   return (await collection.findOne({ id })) as User | null
 }
 
 export async function getAllUsers(): Promise<User[]> {
-  const db = await getDb()
+  const { db } = await connectToDatabase()
   const collection = db.collection(COLLECTION_NAME)
-  return (await collection.find({}).sort({ createdAt: -1 }).toArray()) as User[]
+  return (await collection.find({}).sort({ createdAt: -1 }).toArray()) as unknown as User[]
 }
 
 export async function deleteUser(id: string): Promise<boolean> {
-  const db = await getDb()
+  const { db } = await connectToDatabase()
   const collection = db.collection(COLLECTION_NAME)
   const result = await collection.deleteOne({ id })
   return result.deletedCount > 0
 }
 
 export async function updateUserRole(id: string, role: UserRole): Promise<boolean> {
-  const db = await getDb()
+  const { db } = await connectToDatabase()
   const collection = db.collection(COLLECTION_NAME)
   const result = await collection.updateOne({ id }, { $set: { role } })
   return result.modifiedCount > 0
@@ -60,7 +60,7 @@ export async function updateUserRole(id: string, role: UserRole): Promise<boolea
 
 // Ensure at least one manager exists (for bootstrap)
 export async function ensureManagerExists(): Promise<boolean> {
-  const db = await getDb()
+  const { db } = await connectToDatabase()
   const collection = db.collection(COLLECTION_NAME)
   const managerCount = await collection.countDocuments({ role: 'manager' })
   return managerCount > 0

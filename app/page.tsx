@@ -3,6 +3,8 @@ import Link from 'next/link'
 import ThemeToggle from '@/components/ThemeToggle'
 import CheckerForm from '@/components/CheckerForm'
 
+export const dynamic = 'force-dynamic'
+
 const navLinkStyle = (active: boolean): React.CSSProperties => ({
   fontSize: 13.5,
   color: active ? 'var(--accent-2)' : 'var(--fg-2)',

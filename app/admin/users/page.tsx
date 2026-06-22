@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import ThemeToggle from '@/components/ThemeToggle'
 
+export const dynamic = 'force-dynamic'
+
 interface User {
   id: string
   username: string
