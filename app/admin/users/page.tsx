@@ -1,8 +1,10 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import ThemeToggle from '@/components/ThemeToggle'
 import LogoutButton from '@/components/LogoutButton'
+import UserGreeting from '@/components/UserGreeting'
+import RoleAwareNav from '@/components/RoleAwareNav'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,43 +12,67 @@ interface User {
   id: string
   username: string
   role: 'user' | 'admin' | 'manager'
+  description: string
   createdAt: string
 }
 
-const navLinkStyle = (active: boolean): React.CSSProperties => ({
-  fontSize: 13.5,
-  color: active ? 'var(--accent-2)' : 'var(--fg-2)',
-  fontWeight: active ? 700 : 500,
-  textDecoration: 'none',
-  padding: '6px 14px',
-  borderRadius: 99,
-  background: active ? 'var(--blush)' : 'transparent',
-})
+interface ActiveSession {
+  sessionId: string
+  username: string
+  role: 'user' | 'admin' | 'manager'
+  createdAt: number
+  lastSeenAt: number
+  expiresAt: number
+  ip?: string
+  isYou: boolean
+}
+
+const roleLabel = (role: string) => (role === 'user' ? '👤 User' : role === 'admin' ? '⚙️ Admin' : '🔑 Manager')
+
+function timeAgo(ms: number): string {
+  const diff = Date.now() - ms
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  return `${hrs}h ago`
+}
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([])
+  const [sessions, setSessions] = useState<ActiveSession[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [showForm, setShowForm] = useState(false)
-  const [formData, setFormData] = useState({ username: '', role: 'user' as const })
+  const [formData, setFormData] = useState({ username: '', role: 'user' as 'user' | 'admin' | 'manager', description: '' })
   const [creating, setCreating] = useState(false)
   const [tempPassword, setTempPassword] = useState('')
+  const [actioningId, setActioningId] = useState<string | null>(null)
+
+  const fetchUsers = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/users')
+      if (!res.ok) throw new Error('Failed to fetch users')
+      const data = await res.json()
+      setUsers(data.users)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load users')
+    }
+  }, [])
+
+  const fetchSessions = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/sessions')
+      if (!res.ok) throw new Error('Failed to fetch sessions')
+      const data = await res.json()
+      setSessions(data.sessions)
+    } catch (err) {
+      // non-fatal, sessions panel just won't populate
+    }
+  }, [])
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const res = await fetch('/api/admin/users')
-        if (!res.ok) throw new Error('Failed to fetch users')
-        const data = await res.json()
-        setUsers(data.users)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load users')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchUsers()
-  }, [])
+    Promise.all([fetchUsers(), fetchSessions()]).finally(() => setLoading(false))
+  }, [fetchUsers, fetchSessions])
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -68,12 +94,75 @@ export default function AdminUsersPage() {
 
       const data = await res.json()
       setTempPassword(data.tempPassword)
-      setFormData({ username: '', role: 'user' })
+      setFormData({ username: '', role: 'user', description: '' })
       setUsers([data.user, ...users])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setCreating(false)
+    }
+  }
+
+  const handleRoleChange = async (id: string, newRole: 'user' | 'admin' | 'manager') => {
+    setActioningId(id)
+    setError('')
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, role: newRole }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to update role')
+      }
+      setUsers(users.map(u => (u.id === id ? { ...u, role: newRole } : u)))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update role')
+    } finally {
+      setActioningId(null)
+    }
+  }
+
+  const handleRemoveUser = async (id: string, username: string) => {
+    if (!confirm(`Remove account "${username}"? This cannot be undone.`)) return
+    setActioningId(id)
+    setError('')
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to remove user')
+      }
+      setUsers(users.filter(u => u.id !== id))
+      fetchSessions()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to remove user')
+    } finally {
+      setActioningId(null)
+    }
+  }
+
+  const handleKickSession = async (sessionId: string, username: string) => {
+    if (!confirm(`Kick ${username}'s session? They'll be logged out immediately.`)) return
+    setError('')
+    try {
+      const res = await fetch('/api/admin/sessions', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to kick session')
+      }
+      setSessions(sessions.filter(s => s.sessionId !== sessionId))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to kick session')
     }
   }
 
@@ -91,11 +180,9 @@ export default function AdminUsersPage() {
             <span style={{ fontWeight: 700, fontSize: 17, color: 'var(--fg)', letterSpacing: '-0.01em', fontFamily: 'Quicksand, sans-serif' }}>BGCheck</span>
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Link href="/" style={navLinkStyle(false)}>Checker</Link>
-            <Link href="/database" style={navLinkStyle(false)}>Database</Link>
-            <Link href="/logs" style={navLinkStyle(false)}>Logs</Link>
-            <Link href="/admin/users" style={navLinkStyle(true)}>Users</Link>
+            <RoleAwareNav activePage="users" />
             <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 6px' }} />
+            <UserGreeting />
             <LogoutButton />
             <ThemeToggle />
           </div>
@@ -112,7 +199,7 @@ export default function AdminUsersPage() {
             Manage Users
           </h1>
           <p className="animate-in" style={{ animationDelay: '0.1s', fontSize: 15, color: 'var(--fg-2)', maxWidth: 480 }}>
-            Create accounts for team members and assign roles.
+            Create accounts, assign roles, and manage active sessions.
           </p>
         </div>
 
@@ -143,7 +230,7 @@ export default function AdminUsersPage() {
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--fg)', marginBottom: 6 }}>Role</label>
                 <select
                   value={formData.role}
-                  onChange={e => setFormData({ ...formData, role: e.target.value as any })}
+                  onChange={e => setFormData({ ...formData, role: e.target.value as 'user' | 'admin' | 'manager' })}
                   disabled={creating}
                   style={{ width: '100%', padding: '10px 12px', fontSize: 14, border: '1px solid var(--border)', borderRadius: 10, background: 'var(--bg-2)', color: 'var(--fg)' }}
                 >
@@ -152,6 +239,18 @@ export default function AdminUsersPage() {
                   <option value="manager">Manager (+ User management)</option>
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--fg)', marginBottom: 6 }}>Description <span style={{ color: 'var(--fg-3)', fontWeight: 400 }}>(optional — helps tell accounts apart)</span></label>
+              <input
+                type="text"
+                value={formData.description}
+                onChange={e => setFormData({ ...formData, description: e.target.value })}
+                disabled={creating}
+                style={{ width: '100%', padding: '10px 12px', fontSize: 14, border: '1px solid var(--border)', borderRadius: 10, background: 'var(--bg-2)', color: 'var(--fg)' }}
+                placeholder="e.g. Sarah, moderation team"
+              />
             </div>
 
             {tempPassword && (
@@ -173,7 +272,7 @@ export default function AdminUsersPage() {
         </div>
 
         {/* Users List */}
-        <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 20, padding: 24, boxShadow: 'var(--shadow-sm)' }}>
+        <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 20, padding: 24, boxShadow: 'var(--shadow-sm)', marginBottom: 28 }}>
           <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--fg)', marginBottom: 16 }}>All Users ({users.length})</h2>
           {loading ? (
             <p style={{ color: 'var(--fg-3)' }}>Loading…</p>
@@ -182,16 +281,65 @@ export default function AdminUsersPage() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {users.map(user => (
-                <div key={user.id} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'space-between' }}>
-                  <div>
+                <div key={user.id} style={{ padding: '14px 0', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                  <div style={{ minWidth: 160 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)' }}>{user.username}</div>
-                    <div style={{ fontSize: 12, color: 'var(--fg-3)' }}>{new Date(user.createdAt).toLocaleDateString()}</div>
+                    {user.description && <div style={{ fontSize: 12.5, color: 'var(--fg-2)', marginTop: 2 }}>{user.description}</div>}
+                    <div style={{ fontSize: 12, color: 'var(--fg-3)', marginTop: 2 }}>{new Date(user.createdAt).toLocaleDateString()}</div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg-2)', background: 'var(--bg-3)', padding: '4px 10px', borderRadius: 99 }}>
-                      {user.role === 'user' ? '👤 User' : user.role === 'admin' ? '⚙️ Admin' : '🔑 Manager'}
-                    </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <select
+                      value={user.role}
+                      onChange={e => handleRoleChange(user.id, e.target.value as 'user' | 'admin' | 'manager')}
+                      disabled={actioningId === user.id}
+                      style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--fg-2)', background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 99, padding: '5px 10px', cursor: 'pointer' }}
+                    >
+                      <option value="user">👤 User</option>
+                      <option value="admin">⚙️ Admin</option>
+                      <option value="manager">🔑 Manager</option>
+                    </select>
+                    <button
+                      onClick={() => handleRemoveUser(user.id, user.username)}
+                      disabled={actioningId === user.id}
+                      title={user.role === 'manager' ? 'Managers can only be removed by themselves' : 'Remove this account'}
+                      style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--red)', background: 'var(--red-bg)', border: '1px solid var(--red-border)', borderRadius: 99, padding: '5px 12px', cursor: actioningId === user.id ? 'not-allowed' : 'pointer' }}
+                    >
+                      Remove
+                    </button>
                   </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Active Sessions */}
+        <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 20, padding: 24, boxShadow: 'var(--shadow-sm)' }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--fg)', marginBottom: 4 }}>Active Sessions ({sessions.length})</h2>
+          <p style={{ fontSize: 12.5, color: 'var(--fg-3)', marginBottom: 16 }}>Kick a session to log that device out immediately, without removing the account.</p>
+          {loading ? (
+            <p style={{ color: 'var(--fg-3)' }}>Loading…</p>
+          ) : sessions.length === 0 ? (
+            <p style={{ color: 'var(--fg-3)' }}>No active sessions.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {sessions.map(s => (
+                <div key={s.sessionId} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                  <div style={{ minWidth: 160 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--fg)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {s.username}
+                      {s.isYou && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-2)', background: 'var(--blush)', padding: '2px 8px', borderRadius: 99 }}>you</span>}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--fg-3)', marginTop: 2 }}>
+                      {roleLabel(s.role)} · last active {timeAgo(s.lastSeenAt)}{s.ip ? ` · ${s.ip}` : ''}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleKickSession(s.sessionId, s.username)}
+                    style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--amber)', background: 'var(--amber-bg)', border: '1px solid var(--amber-border)', borderRadius: 99, padding: '5px 12px', cursor: 'pointer' }}
+                  >
+                    Kick
+                  </button>
                 </div>
               ))}
             </div>

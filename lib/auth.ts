@@ -7,15 +7,21 @@ export interface User {
   username: string
   passwordHash: string
   role: UserRole
+  description?: string
   createdAt: Date
 }
 
-export interface Session {
+// A session record now lives server-side in MongoDB so it can be revoked
+// (kicked) on demand. The cookie only carries the sessionId — nothing else.
+export interface SessionRecord {
+  sessionId: string
   userId: string
   username: string
   role: UserRole
   createdAt: number
+  lastSeenAt: number
   expiresAt: number
+  ip?: string
 }
 
 // Password hashing — scrypt is built-in and solid
@@ -32,21 +38,14 @@ export function verifyPassword(password: string, hash: string): boolean {
   return computed === storedHash
 }
 
-// Session management — 3 hour expiry in ms
-const SESSION_DURATION_MS = 3 * 60 * 60 * 1000
+// 3 hour hard expiry, in ms
+export const SESSION_DURATION_MS = 3 * 60 * 60 * 1000
 
-export function createSession(userId: string, username: string, role: UserRole): Session {
-  const now = Date.now()
-  return {
-    userId,
-    username,
-    role,
-    createdAt: now,
-    expiresAt: now + SESSION_DURATION_MS,
-  }
+export function generateSessionId(): string {
+  return randomBytes(24).toString('hex')
 }
 
-export function isSessionValid(session: Session): boolean {
+export function isSessionValid(session: SessionRecord): boolean {
   return Date.now() < session.expiresAt
 }
 
@@ -60,15 +59,3 @@ export function canAccess(role: UserRole, page: 'checker' | 'database' | 'logs' 
   return permissions[role]?.includes(page) ?? false
 }
 
-// Session encoding/decoding for cookie
-export function encodeSession(session: Session): string {
-  return Buffer.from(JSON.stringify(session)).toString('base64')
-}
-
-export function decodeSession(encoded: string): Session | null {
-  try {
-    return JSON.parse(Buffer.from(encoded, 'base64').toString('utf-8'))
-  } catch {
-    return null
-  }
-}

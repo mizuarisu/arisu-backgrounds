@@ -13,6 +13,8 @@ interface PlayerData {
   badgeCount: number
   accessories: number
   collectibles: number
+  directBlacklistEntry: { reason: string; severity: 'high' | 'medium' | 'low'; addedAt: string } | null
+  xtrackerFound: boolean | null
 }
 
 interface BlacklistEntry {
@@ -120,7 +122,7 @@ export default function CheckerForm() {
   const flaggedFriends = data ? data.friends.filter(f => blacklist.users.find(u => u.value === String(f.id))) : []
   const flaggedGroups = data ? data.groups.filter(g => blacklist.groups.find(b => b.value === String(g.group.id))) : []
 
-  const riskScore = (flaggedFriends.length > 0 ? 2 : 0) + (flaggedGroups.length > 0 ? 3 : 0) + (data?.profile?.isBanned ? 1 : 0)
+  const riskScore = (flaggedFriends.length > 0 ? 2 : 0) + (flaggedGroups.length > 0 ? 3 : 0) + (data?.profile?.isBanned ? 1 : 0) + (data?.directBlacklistEntry ? 5 : 0) + (data?.xtrackerFound ? 3 : 0)
   const risk = riskScore >= 4 ? 'HIGH RISK' : riskScore >= 1 ? 'CAUTION' : 'CLEAR'
   const riskColor: 'red' | 'amber' | 'green' = riskScore >= 4 ? 'red' : riskScore >= 1 ? 'amber' : 'green'
 
@@ -192,6 +194,31 @@ export default function CheckerForm() {
         <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
 
           {/* Alert banners */}
+
+          {/* Direct blacklist hit — the SEARCHED PLAYER THEMSELF is on the blacklist.
+              This is the loudest banner since it's a direct match, not an association. */}
+          {data.directBlacklistEntry && (
+            <div className="animate-pop" style={{ padding: '16px 20px', background: 'var(--red-bg)', border: '2px solid var(--red)', borderRadius: 16, fontSize: 14.5, color: 'var(--red)', display: 'flex', gap: 12, alignItems: 'flex-start', boxShadow: '0 0 0 4px var(--red-bg)' }}>
+              <span style={{ fontSize: 22 }}>🚨</span>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>This player is on your blacklist</div>
+                <div style={{ fontSize: 13.5 }}>
+                  {data.directBlacklistEntry.reason || 'No reason recorded.'}
+                  {' '}<Chip color={data.directBlacklistEntry.severity === 'high' ? 'red' : data.directBlacklistEntry.severity === 'medium' ? 'amber' : 'default'}>{data.directBlacklistEntry.severity} severity</Chip>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* xTracker hit — third-party community anti-cheat database, NOT our own
+              data. Worded as a prompt to verify, not as a confirmed fact. */}
+          {data.xtrackerFound && (
+            <div className="animate-pop" style={{ padding: '14px 18px', background: 'var(--amber-bg)', border: '1px solid var(--amber-border)', borderRadius: 16, fontSize: 13.5, color: '#9c6a26', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+              <span style={{ fontSize: 17 }}>🔎</span>
+              <span><strong>Found in xTracker</strong> — verify before acting. xTracker is a community-run anti-cheat database; this app doesn&apos;t have access to the specific reason. Contact xTracker staff for details.</span>
+            </div>
+          )}
+
           {flaggedFriends.map(f => {
             const bl = blacklist.users.find(u => u.value === String(f.id))
             return (
@@ -407,7 +434,9 @@ Target Group ${TARGET_GROUP}: ${targetGroup ? `✓ Member — ${targetGroup.role
 Division Groups: ${divisionGroups.length > 0 ? divisionGroups.map(g => g.group.name).join(', ') : 'None'}
 
 Flagged Friends: ${flaggedFriends.length > 0 ? flaggedFriends.map(f => f.name || `User ${f.id}`).join(', ') : 'None'}
-Flagged Groups : ${flaggedGroups.length > 0 ? flaggedGroups.map(g => g.group.name || `Group ${g.group.id}`).join(', ') : 'None'}`}
+Flagged Groups : ${flaggedGroups.length > 0 ? flaggedGroups.map(g => g.group.name || `Group ${g.group.id}`).join(', ') : 'None'}
+Blacklisted    : ${data.directBlacklistEntry ? `YES — ${data.directBlacklistEntry.reason || 'no reason recorded'}` : 'No'}
+xTracker       : ${data.xtrackerFound === null ? 'Not checked (no API key configured)' : data.xtrackerFound ? 'FOUND — verify with xTracker staff' : 'Not found'}`}
             </pre>
           </Card>
         </div>

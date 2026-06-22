@@ -4,7 +4,7 @@ import { randomBytes } from 'crypto'
 
 const COLLECTION_NAME = 'users'
 
-export async function createUser(username: string, password: string, role: UserRole): Promise<User> {
+export async function createUser(username: string, password: string, role: UserRole, description?: string): Promise<User> {
   const { db } = await connectToDatabase()
   const collection = db.collection(COLLECTION_NAME)
 
@@ -19,6 +19,7 @@ export async function createUser(username: string, password: string, role: UserR
     username,
     passwordHash: hashPassword(password),
     role,
+    description: description || '',
     createdAt: new Date(),
   }
 

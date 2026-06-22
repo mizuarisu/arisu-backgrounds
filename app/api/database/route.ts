@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDatabase, addEntry, removeEntry, type BlacklistEntry } from '@/lib/database'
 import { logEvent } from '@/lib/logger'
+import { getValidSessionFromCookie, requireRole } from '@/lib/session-guard'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+async function getSession(req: NextRequest) {
+  return getValidSessionFromCookie(req.cookies.get('bgcheck-session')?.value)
+}
+
+export async function GET(req: NextRequest) {
+  const session = await getSession(req)
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  if (!requireRole(session.role, 'database')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
   try {
     const db = await getDatabase()
     return NextResponse.json(db)
@@ -15,6 +24,10 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await getSession(req)
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  if (!requireRole(session.role, 'database')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
   try {
     const { type, value, name, severity, reason } = await req.json()
 
@@ -33,7 +46,7 @@ export async function POST(req: NextRequest) {
     }
 
     await addEntry(entry)
-    logEvent('info', 'blacklist_add', `Added ${type} "${name || value}" to blacklist`, { type, value, name, severity, reason })
+    logEvent('info', 'blacklist_add', `${session.username} added ${type} "${name || value}" to blacklist`, { type, value, name, severity, reason, addedBy: session.username })
     return NextResponse.json({ success: true, entry })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to add entry'
@@ -43,6 +56,10 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const session = await getSession(req)
+  if (!session) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  if (!requireRole(session.role, 'database')) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
   try {
     const { id } = await req.json()
     if (!id) {
@@ -50,7 +67,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     await removeEntry(id)
-    logEvent('info', 'blacklist_remove', `Removed blacklist entry`, { id })
+    logEvent('info', 'blacklist_remove', `${session.username} removed blacklist entry`, { id, removedBy: session.username })
     return NextResponse.json({ success: true })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to delete entry'

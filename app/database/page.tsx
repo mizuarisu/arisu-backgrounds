@@ -4,18 +4,10 @@ import Link from 'next/link'
 import ThemeToggle from '@/components/ThemeToggle'
 import DatabaseManager from '@/components/DatabaseManager'
 import LogoutButton from '@/components/LogoutButton'
+import UserGreeting from '@/components/UserGreeting'
+import RoleAwareNav from '@/components/RoleAwareNav'
 
 export const dynamic = 'force-dynamic'
-
-const navLinkStyle = (active: boolean): React.CSSProperties => ({
-  fontSize: 13.5,
-  color: active ? 'var(--accent-2)' : 'var(--fg-2)',
-  fontWeight: active ? 700 : 500,
-  textDecoration: 'none',
-  padding: '6px 14px',
-  borderRadius: 99,
-  background: active ? 'var(--blush)' : 'transparent',
-})
 
 export default function DatabasePage() {
   return (
@@ -33,11 +25,9 @@ export default function DatabasePage() {
             <span style={{ fontWeight: 700, fontSize: 17, color: 'var(--fg)', letterSpacing: '-0.01em', fontFamily: 'Quicksand, sans-serif' }}>BGCheck</span>
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Link href="/" style={navLinkStyle(false)}>Checker</Link>
-            <Link href="/database" style={navLinkStyle(true)}>Database</Link>
-            <Link href="/logs" style={navLinkStyle(false)}>Logs</Link>
-            <Link href="/admin/users" style={navLinkStyle(false)}>Users</Link>
+            <RoleAwareNav activePage="database" />
             <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 6px' }} />
+            <UserGreeting />
             <LogoutButton />
             <ThemeToggle />
           </div>
