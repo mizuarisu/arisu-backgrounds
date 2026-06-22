@@ -23,11 +23,38 @@ MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/roblox-checker
 ROBLOX_OPEN_CLOUD_KEY=<your-open-cloud-api-key>
 ```
 
+### Authentication & Authorization
+
+This app uses **role-based access control** with three tiers:
+
+- **User** — Checker only (read-only player lookups)
+- **Admin** — Checker + Database + Logs
+- **Manager** — Checker + Database + Logs + account creation/management
+
+All accounts are whitelist-only (no self-signup). You create accounts via the `/admin/users` page, which only managers can access.
+
+**First-time setup:**
+
+1. Create the first manager account locally:
+   ```bash
+   MONGODB_URI=<your-uri> node scripts/create-admin.js
+   ```
+   This prompts you for a username/password and creates a manager account in MongoDB.
+
+2. After deploying, log in at `/login` with those credentials.
+
+3. Go to `/admin/users` to create accounts for team members and assign their roles.
+
+**Session behavior:**
+- Sessions are stored in a secure, session-only cookie (cleared when the browser closes)
+- Sessions also hard-expire after 3 hours, whichever comes first
+- On logout, the cookie is deleted and the user is redirected to `/login`
+
 ```bash
 npm run dev
 ```
 
-Deploy to Vercel with both env vars set in the project settings.
+Deploy to Vercel with `MONGODB_URI` and `ROBLOX_OPEN_CLOUD_KEY` set in environment variables.
 
 ## Badge counts
 

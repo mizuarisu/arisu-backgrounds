@@ -33,7 +33,9 @@ export default function Home() {
             <Link href="/" style={navLinkStyle(true)}>Checker</Link>
             <Link href="/database" style={navLinkStyle(false)}>Database</Link>
             <Link href="/logs" style={navLinkStyle(false)}>Logs</Link>
+            <Link href="/admin/users" style={navLinkStyle(false)}>Users</Link>
             <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 6px' }} />
+            <button onClick={() => { fetch('/api/auth/logout', { method: 'POST' }).then(() => window.location.href = '/login') }} style={{ fontSize: 13.5, color: 'var(--fg-2)', fontWeight: 500, textDecoration: 'none', padding: '6px 14px', borderRadius: 99, background: 'transparent', border: 'none', cursor: 'pointer' }}>Logout</button>
             <ThemeToggle />
           </div>
         </div>
@@ -51,7 +53,7 @@ export default function Home() {
             <span className="gradient-text">Check Tool</span>
           </h1>
           <p className="animate-in" style={{ animationDelay: '0.1s', fontSize: 16, color: 'var(--fg-2)', maxWidth: 480, lineHeight: 1.7, marginBottom: 8 }}>
-            Background check any Roblox player — groups, friends, badge count — and cross-reference them against your blacklist database in seconds.
+            Investigate any Roblox player — groups, friends, badge count — and cross-reference them against your blacklist database in seconds.
           </p>
         </div>
       </div>
@@ -66,8 +68,8 @@ export default function Home() {
       {/* Footer */}
       <footer style={{ borderTop: '1px solid var(--border)', position: 'relative', zIndex: 1 }}>
         <div style={{ maxWidth: 920, margin: '0 auto', padding: '24px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 12, color: 'var(--fg-3)' }}>Arisu Background Check E:3.1</span>
-          <span style={{ fontSize: 12, color: 'var(--fg-3)' }}>Powered by Roproxy & Vercel</span>
+          <span style={{ fontSize: 12, color: 'var(--fg-3)' }}>BGCheck v3.1</span>
+          <span style={{ fontSize: 12, color: 'var(--fg-3)' }}>roproxy.com</span>
         </div>
       </footer>
     </div>
