@@ -17,6 +17,7 @@ interface PlayerData {
   collectibles: number
   directBlacklistEntry: { reason: string; severity: 'high' | 'medium' | 'low'; addedAt: string } | null
   xtrackerFound: boolean | null
+  xtrackerEntries: Array<{ reason?: string; date?: string }>
 }
 
 interface BlacklistEntry {
@@ -329,17 +330,35 @@ export default function CheckerForm() {
           {/* xTracker result — third-party community anti-cheat database, NOT
               our own data. Shown as its own card right below Target Group, with
               both a "found" and a "clear" state so the absence of a hit is
-              visible too, not just silence. */}
+              visible too, not just silence. If the API exposes reason/date
+              detail we show it directly; otherwise we fall back to pointing
+              at xTracker staff, since we can't be sure the data is unavailable
+              versus just not yet confirmed in our parsing. */}
           {data.xtrackerFound !== null && (
             <Card style={{ border: data.xtrackerFound ? '1.5px solid var(--amber-border)' : '1px solid var(--border)', background: data.xtrackerFound ? 'var(--amber-bg)' : 'var(--bg-2)' }}>
               <SectionLabel emoji="🔎">xTracker</SectionLabel>
               {data.xtrackerFound ? (
-                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: 22 }}>⚠️</span>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 14.5, color: '#9c6a26', marginBottom: 2 }}>Found in xTracker — verify before acting</div>
-                    <div style={{ fontSize: 13, color: 'var(--fg-2)' }}>xTracker is a community-run anti-cheat database; this app doesn&apos;t have access to the specific reason. Contact xTracker staff for details before taking action.</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 22 }}>⚠️</span>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 14.5, color: '#9c6a26', marginBottom: 2 }}>Found in xTracker — verify before acting</div>
+                      {data.xtrackerEntries.length === 0 && (
+                        <div style={{ fontSize: 13, color: 'var(--fg-2)' }}>xTracker is a community-run anti-cheat database; this app doesn&apos;t have access to the specific reason. Contact xTracker staff for details before taking action.</div>
+                      )}
+                    </div>
                   </div>
+                  {data.xtrackerEntries.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 34 }}>
+                      {data.xtrackerEntries.map((entry, i) => (
+                        <div key={i} style={{ fontSize: 13, color: 'var(--fg-2)', background: 'var(--bg-2)', borderRadius: 10, padding: '8px 12px' }}>
+                          {entry.reason && <div><strong style={{ color: 'var(--fg)' }}>Reason:</strong> {entry.reason}</div>}
+                          {entry.date && <div style={{ fontSize: 12, color: 'var(--fg-3)', marginTop: 2 }}>{new Date(entry.date).toLocaleString()}</div>}
+                        </div>
+                      ))}
+                      <div style={{ fontSize: 11.5, color: 'var(--fg-3)' }}>Still verify with xTracker staff before acting — this app can&apos;t confirm appeal status.</div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -467,7 +486,7 @@ Division Groups: ${divisionGroups.length > 0 ? divisionGroups.map(g => g.group.n
 Flagged Friends: ${flaggedFriends.length > 0 ? flaggedFriends.map(f => f.name || `User ${f.id}`).join(', ') : 'None'}
 Flagged Groups : ${flaggedGroups.length > 0 ? flaggedGroups.map(g => g.group.name || `Group ${g.group.id}`).join(', ') : 'None'}
 Blacklisted    : ${data.directBlacklistEntry ? `YES — ${data.directBlacklistEntry.reason || 'no reason recorded'}` : 'No'}
-xTracker       : ${data.xtrackerFound === null ? 'Not checked (no API key configured)' : data.xtrackerFound ? 'FOUND — verify with xTracker staff' : 'Not found'}`}
+xTracker       : ${data.xtrackerFound === null ? 'Not checked (no API key configured)' : data.xtrackerFound ? `FOUND${data.xtrackerEntries.length > 0 ? ' — ' + data.xtrackerEntries.map(e => e.reason || 'reason unknown').join('; ') : ' — verify with xTracker staff'}` : 'Not found'}`}
             </pre>
           </Card>
         </div>
