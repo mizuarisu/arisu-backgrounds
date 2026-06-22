@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
     const profileData = profile.status === 'fulfilled' ? profile.value : null
     const friendsData = friends.status === 'fulfilled' ? friends.value : []
     const groupsData = groups.status === 'fulfilled' ? groups.value : []
-    const badgeResult = badges.status === 'fulfilled' ? badges.value : { count: 0, source: 'legacy' as const, debug: badges.status === 'rejected' ? String(badges.reason) : undefined }
+    const badgeResult = badges.status === 'fulfilled' ? badges.value : { count: 0, dates: [] as string[], source: 'legacy' as const, debug: badges.status === 'rejected' ? String(badges.reason) : undefined }
     const avatarData = avatarAssets.status === 'fulfilled' ? avatarAssets.value : []
     const collectiblesData = collectibles.status === 'fulfilled' ? collectibles.value : []
     const profileAvatarUrl = profileAvatar.status === 'fulfilled' ? profileAvatar.value : null
@@ -112,6 +112,7 @@ export async function GET(req: NextRequest) {
       })),
       groups: groupsData,
       badgeCount: badgeResult.count,
+      badgeDates: badgeResult.dates, // ISO timestamps, used to render the badges-over-time chart; empty if using legacy source
       accessories: accessoryCount,
       collectibles: collectiblesData.length,
       directBlacklistEntry: directBlacklistEntry

@@ -37,8 +37,8 @@ export async function notifyRoleChanged(byUsername: string, targetUsername: stri
   await sendWebhook(`🔧 **${byUsername}** changed **${targetUsername}**'s role: \`${oldRole}\` → \`${newRole}\``, 0xd9924a)
 }
 
-export async function notifyLogin(username: string, role: string, ip?: string) {
-  await sendWebhook(`🔑 **${username}** (\`${role}\`) logged in${ip ? ` from \`${ip}\`` : ''}`, 0x7b8fc4)
+export async function notifyLogin(username: string, role: string) {
+  await sendWebhook(`🔑 **${username}** (\`${role}\`) logged in`, 0x7b8fc4)
 }
 
 export async function notifySessionKicked(byUsername: string, kickedUsername: string) {

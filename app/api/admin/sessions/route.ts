@@ -26,7 +26,6 @@ export async function GET(req: NextRequest) {
         createdAt: s.createdAt,
         lastSeenAt: s.lastSeenAt,
         expiresAt: s.expiresAt,
-        ip: s.ip,
         isYou: s.sessionId === req.cookies.get('bgcheck-session')?.value,
       })),
     })

@@ -21,7 +21,6 @@ export interface SessionRecord {
   createdAt: number
   lastSeenAt: number
   expiresAt: number
-  ip?: string
 }
 
 // Password hashing — scrypt is built-in and solid

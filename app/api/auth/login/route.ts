@@ -19,11 +19,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
     }
 
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || undefined
-    const sessionRecord = await createSessionRecord(user.id, user.username, user.role, ip)
+    const sessionRecord = await createSessionRecord(user.id, user.username, user.role)
 
-    logEvent('info', 'system', `${user.username} logged in`, { username: user.username, role: user.role, ip })
-    notifyLogin(user.username, user.role, ip) // fire-and-forget, won't block response
+    logEvent('info', 'system', `${user.username} logged in`, { username: user.username, role: user.role })
+    notifyLogin(user.username, user.role) // fire-and-forget, won't block response
 
     const response = NextResponse.json({ success: true, role: user.role })
     // Cookie holds only the session ID — the actual session record lives in

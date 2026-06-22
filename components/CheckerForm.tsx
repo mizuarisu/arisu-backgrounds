@@ -1,5 +1,6 @@
 'use client'
 import { useState, useCallback } from 'react'
+import BadgeChart from './BadgeChart'
 
 const TARGET_GROUP = 4219097
 const DIVISION_GROUPS = [812204725, 503346911, 34510781, 8310499, 5336916, 5351323, 5351327, 5336904, 33036871, 5336914]
@@ -11,6 +12,7 @@ interface PlayerData {
   friends: Array<{ id: number; name: string; displayName: string; thumbnailUrl: string | null }>
   groups: Array<{ group: { id: number; name: string; memberCount: number }; role: { name: string; rank: number } }>
   badgeCount: number
+  badgeDates: string[]
   accessories: number
   collectibles: number
   directBlacklistEntry: { reason: string; severity: 'high' | 'medium' | 'low'; addedAt: string } | null
@@ -210,15 +212,6 @@ export default function CheckerForm() {
             </div>
           )}
 
-          {/* xTracker hit — third-party community anti-cheat database, NOT our own
-              data. Worded as a prompt to verify, not as a confirmed fact. */}
-          {data.xtrackerFound && (
-            <div className="animate-pop" style={{ padding: '14px 18px', background: 'var(--amber-bg)', border: '1px solid var(--amber-border)', borderRadius: 16, fontSize: 13.5, color: '#9c6a26', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-              <span style={{ fontSize: 17 }}>🔎</span>
-              <span><strong>Found in xTracker</strong> — verify before acting. xTracker is a community-run anti-cheat database; this app doesn&apos;t have access to the specific reason. Contact xTracker staff for details.</span>
-            </div>
-          )}
-
           {flaggedFriends.map(f => {
             const bl = blacklist.users.find(u => u.value === String(f.id))
             return (
@@ -319,7 +312,7 @@ export default function CheckerForm() {
               </div>
             </Card>
 
-            {/* Badge count tile — replaces the chart entirely */}
+            {/* Badge count tile — full chart (if dates are available) renders below as its own card */}
             <Card style={{ background: 'linear-gradient(135deg, var(--blush), var(--bg-2))' }}>
               <SectionLabel emoji="🏆">Total Badges</SectionLabel>
               <div className="count-pop" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 0', gap: 4 }}>
@@ -332,6 +325,44 @@ export default function CheckerForm() {
               </div>
             </Card>
           </div>
+
+          {/* xTracker result — third-party community anti-cheat database, NOT
+              our own data. Shown as its own card right below Target Group, with
+              both a "found" and a "clear" state so the absence of a hit is
+              visible too, not just silence. */}
+          {data.xtrackerFound !== null && (
+            <Card style={{ border: data.xtrackerFound ? '1.5px solid var(--amber-border)' : '1px solid var(--border)', background: data.xtrackerFound ? 'var(--amber-bg)' : 'var(--bg-2)' }}>
+              <SectionLabel emoji="🔎">xTracker</SectionLabel>
+              {data.xtrackerFound ? (
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: 22 }}>⚠️</span>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14.5, color: '#9c6a26', marginBottom: 2 }}>Found in xTracker — verify before acting</div>
+                    <div style={{ fontSize: 13, color: 'var(--fg-2)' }}>xTracker is a community-run anti-cheat database; this app doesn&apos;t have access to the specific reason. Contact xTracker staff for details before taking action.</div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <span style={{ fontSize: 22 }}>✅</span>
+                  <div style={{ fontSize: 13.5, color: 'var(--fg-2)' }}>Clear — not found in xTracker&apos;s database.</div>
+                </div>
+              )}
+            </Card>
+          )}
+
+          {/* Badges-over-time chart — only renders when we have award-date data,
+              which requires the Open Cloud source (ROBLOX_OPEN_CLOUD_KEY set).
+              The legacy fallback has no timestamps, so this silently doesn't
+              show rather than rendering an empty/broken chart. */}
+          {data.badgeDates && data.badgeDates.length > 1 && (
+            <Card>
+              <SectionLabel emoji="📈">Badges Over Time</SectionLabel>
+              <BadgeChart dates={data.badgeDates} />
+              <div style={{ fontSize: 11.5, color: 'var(--fg-3)', marginTop: 8, textAlign: 'right' }}>
+                Cumulative badge count by award date · {data.badgeDates.length} badges plotted
+              </div>
+            </Card>
+          )}
 
           {/* Division Groups */}
           {divisionGroups.length > 0 && (

@@ -23,7 +23,6 @@ interface ActiveSession {
   createdAt: number
   lastSeenAt: number
   expiresAt: number
-  ip?: string
   isYou: boolean
 }
 
@@ -331,7 +330,7 @@ export default function AdminUsersPage() {
                       {s.isYou && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-2)', background: 'var(--blush)', padding: '2px 8px', borderRadius: 99 }}>you</span>}
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--fg-3)', marginTop: 2 }}>
-                      {roleLabel(s.role)} · last active {timeAgo(s.lastSeenAt)}{s.ip ? ` · ${s.ip}` : ''}
+                      {roleLabel(s.role)} · last active {timeAgo(s.lastSeenAt)}
                     </div>
                   </div>
                   <button

@@ -3,7 +3,7 @@ import { SessionRecord, UserRole, generateSessionId, SESSION_DURATION_MS } from 
 
 const COLLECTION_NAME = 'sessions'
 
-export async function createSessionRecord(userId: string, username: string, role: UserRole, ip?: string): Promise<SessionRecord> {
+export async function createSessionRecord(userId: string, username: string, role: UserRole): Promise<SessionRecord> {
   const { db } = await connectToDatabase()
   const collection = db.collection(COLLECTION_NAME)
 
@@ -16,7 +16,6 @@ export async function createSessionRecord(userId: string, username: string, role
     createdAt: now,
     lastSeenAt: now,
     expiresAt: now + SESSION_DURATION_MS,
-    ip,
   }
 
   await collection.insertOne(record as any)
