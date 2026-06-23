@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
     const collectiblesData = collectibles.status === 'fulfilled' ? collectibles.value : []
     const profileAvatarUrl = profileAvatar.status === 'fulfilled' ? profileAvatar.value : null
     const blacklist = blacklistDb.status === 'fulfilled' ? blacklistDb.value : { users: [], groups: [] }
-    const xtrackerResult = xtracker.status === 'fulfilled' ? xtracker.value : { found: false, checked: false, entries: [] as { reason?: string; date?: string }[] }
+    const xtrackerResult = xtracker.status === 'fulfilled' ? xtracker.value : { found: false, checked: false, evidence: [] as { reason?: string; date?: string; url?: string }[], altCount: 0 }
 
     // Direct blacklist check — is the SEARCHED PLAYER THEMSELF on the blacklist?
     // (Separate from flagged friends/groups, which is an indirect association.)
@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
 
     if (xtrackerResult.checked) {
       if (xtrackerResult.found) {
-        logEvent('warn', 'player_lookup', `${user.name} was found in xTracker's database (checked by ${session.username}, ${xtrackerResult.entries.length} entries parsed)`, { userId: uid, lookedUpBy: session.username, entries: xtrackerResult.entries, debug: xtrackerResult.debug })
+        logEvent('warn', 'player_lookup', `${user.name} was found in xTracker's database (checked by ${session.username}, ${xtrackerResult.evidence.length} evidence entries, ${xtrackerResult.altCount} alts)`, { userId: uid, lookedUpBy: session.username, evidence: xtrackerResult.evidence, altCount: xtrackerResult.altCount, debug: xtrackerResult.debug })
       } else {
         logEvent('info', 'player_lookup', `xTracker check for ${user.name} returned not-found`, { userId: uid, debug: xtrackerResult.debug })
       }
@@ -119,7 +119,8 @@ export async function GET(req: NextRequest) {
         ? { reason: directBlacklistEntry.reason, severity: directBlacklistEntry.severity, addedAt: directBlacklistEntry.addedAt }
         : null,
       xtrackerFound: xtrackerResult.checked ? xtrackerResult.found : null, // null = check wasn't performed (no API key)
-      xtrackerEntries: xtrackerResult.entries, // reason/date detail, if the API exposes it — empty array if not
+      xtrackerEvidence: xtrackerResult.evidence, // reason/date/url per incident
+      xtrackerAltCount: xtrackerResult.altCount, // number of linked alt accounts xTracker reports
     })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
