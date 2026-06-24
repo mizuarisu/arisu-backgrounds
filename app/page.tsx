@@ -71,8 +71,8 @@ export default async function Home() {
       {/* Footer */}
       <footer style={{ borderTop: '1px solid var(--border)', position: 'relative', zIndex: 1 }}>
         <div style={{ maxWidth: 920, margin: '0 auto', padding: '24px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 12, color: 'var(--fg-3)' }}>BGCheck v3.1</span>
-          <span style={{ fontSize: 12, color: 'var(--fg-3)' }}>roproxy.com</span>
+          <span style={{ fontSize: 12, color: 'var(--fg-3)' }}>BGCheck v3.2</span>
+          <span style={{ fontSize: 12, color: 'var(--fg-3)' }}>Powered by Vercel & Roproxy </span>
         </div>
       </footer>
     </div>
