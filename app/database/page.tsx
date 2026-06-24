@@ -1,15 +1,20 @@
-'use client'
 import { Suspense } from 'react'
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import ThemeToggle from '@/components/ThemeToggle'
 import DatabaseManager from '@/components/DatabaseManager'
 import LogoutButton from '@/components/LogoutButton'
 import UserGreeting from '@/components/UserGreeting'
 import RoleAwareNav from '@/components/RoleAwareNav'
+import { getValidSession, requireRole } from '@/lib/session-guard'
 
 export const dynamic = 'force-dynamic'
 
-export default function DatabasePage() {
+export default async function DatabasePage() {
+  const session = await getValidSession()
+  if (!session) redirect('/login')
+  if (!requireRole(session.role, 'database')) redirect('/login')
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', position: 'relative', overflow: 'hidden' }}>
       <div className="grid-backdrop" />

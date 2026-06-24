@@ -14,6 +14,7 @@ interface PlayerData {
   badgeCount: number
   badgeDates: string[]
   accessories: number
+  ownedAccessoryCount: number | null
   collectibles: number
   directBlacklistEntry: { reason: string; severity: 'high' | 'medium' | 'low'; addedAt: string } | null
   xtrackerFound: boolean | null
@@ -172,9 +173,14 @@ export default function CheckerForm() {
 
       {/* Error */}
       {error && (
-        <div className="animate-pop" style={{ marginBottom: 24, padding: '14px 18px', background: 'var(--red-bg)', border: '1px solid var(--red-border)', borderRadius: 16, color: 'var(--red)', fontSize: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 18 }}>😕</span>
-          {error}
+        <div className="animate-pop" style={{ marginBottom: 24, padding: '14px 18px', background: 'var(--red-bg)', border: '1px solid var(--red-border)', borderRadius: 16, color: 'var(--red)', fontSize: 14, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+          <span style={{ fontSize: 18 }}>{error.toLowerCase().includes('rate limited') ? '⏳' : '😕'}</span>
+          <div>
+            <div>{error}</div>
+            {error.toLowerCase().includes('rate limited') && (
+              <div style={{ fontSize: 12.5, color: 'var(--fg-2)', marginTop: 4 }}>This is Roblox throttling requests, not a bug — wait a few seconds and try again.</div>
+            )}
+          </div>
         </div>
       )}
 
@@ -304,7 +310,7 @@ export default function CheckerForm() {
                 <div style={{ background: 'var(--bg-3)', borderRadius: 14, padding: '12px 14px' }}>
                   <div style={{ fontSize: 22 }}>🎩</div>
                   <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--fg)', letterSpacing: '-0.02em' }}>{data.accessories}</div>
-                  <div style={{ fontSize: 11, color: 'var(--fg-3)', fontWeight: 600 }}>Accessories</div>
+                  <div style={{ fontSize: 11, color: 'var(--fg-3)', fontWeight: 600 }}>Equipped</div>
                 </div>
                 <div style={{ background: 'var(--bg-3)', borderRadius: 14, padding: '12px 14px' }}>
                   <div style={{ fontSize: 22 }}>💎</div>
@@ -312,6 +318,11 @@ export default function CheckerForm() {
                   <div style={{ fontSize: 11, color: 'var(--fg-3)', fontWeight: 600 }}>Collectibles</div>
                 </div>
               </div>
+              {data.ownedAccessoryCount !== null && (
+                <div style={{ marginTop: 10, fontSize: 12, color: 'var(--fg-2)', textAlign: 'center' }}>
+                  <strong style={{ color: 'var(--fg)' }}>{data.ownedAccessoryCount}</strong> total accessories owned
+                </div>
+              )}
             </Card>
 
             {/* Badge count tile — full chart (if dates are available) renders below as its own card */}
@@ -487,7 +498,7 @@ export default function CheckerForm() {
 {`Player : ${data.profile?.displayName || data.user.name} (@${data.user.name})
 ID     : ${data.user.id}
 Age    : ${accountAge !== null ? accountAge + ' year(s)' : 'unknown'} · Status: ${data.profile?.isBanned ? 'BANNED' : 'Active'}
-Groups : ${data.groups.length}  Friends: ${data.friends.length}  Badges: ${data.badgeCount}
+Groups : ${data.groups.length}  Friends: ${data.friends.length}  Badges: ${data.badgeCount}${data.ownedAccessoryCount !== null ? `  Accessories owned: ${data.ownedAccessoryCount}` : ''}
 
 Target Group ${TARGET_GROUP}: ${targetGroup ? `✓ Member — ${targetGroup.role.name} (rank ${targetGroup.role.rank})` : '✗ Not a member'}
 Division Groups: ${divisionGroups.length > 0 ? divisionGroups.map(g => g.group.name).join(', ') : 'None'}

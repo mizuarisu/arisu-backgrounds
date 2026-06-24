@@ -1,14 +1,24 @@
 import { Suspense } from 'react'
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import ThemeToggle from '@/components/ThemeToggle'
 import CheckerForm from '@/components/CheckerForm'
 import LogoutButton from '@/components/LogoutButton'
 import UserGreeting from '@/components/UserGreeting'
 import RoleAwareNav from '@/components/RoleAwareNav'
+import { getValidSession, requireRole } from '@/lib/session-guard'
 
 export const dynamic = 'force-dynamic'
 
-export default function Home() {
+export default async function Home() {
+  // Real validation happens here, not just in middleware (which can only
+  // check "does a cookie exist," not whether it's still valid in MongoDB —
+  // that needs the Node.js runtime). This is what actually enforces kicks
+  // and the 3-hour expiry at the page level, not just on individual API calls.
+  const session = await getValidSession()
+  if (!session) redirect('/login')
+  if (!requireRole(session.role, 'checker')) redirect('/login')
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', position: 'relative', overflow: 'hidden' }}>
       <div className="grid-backdrop" />

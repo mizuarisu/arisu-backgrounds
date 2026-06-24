@@ -1,21 +1,55 @@
 const BASE = (sub: string) => `https://${sub}.roproxy.com`
 
 export async function getUserByUsername(username: string) {
-  const res = await fetch(`${BASE('users')}/v1/usernames/users`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
-    next: { revalidate: 0 },
-  })
-  if (!res.ok) throw new Error('User lookup failed')
-  const data = await res.json()
-  if (!data.data?.length) throw new Error('User not found')
-  return data.data[0] as { id: number; name: string; displayName: string }
+  // The username→ID resolution endpoint is one of Roblox's most heavily
+  // rate-limited (every tool calls it first), so transient 429s here are
+  // common even under normal use, not necessarily a sign of abuse. One retry
+  // with a short delay clears most of these without the user needing to
+  // manually click "Run Check" again.
+  const maxAttempts = 2
+  let lastError: Error | null = null
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const res = await fetch(`${BASE('users')}/v1/usernames/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
+        next: { revalidate: 0 },
+      })
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => '')
+        const isRateLimited = res.status === 429
+        const reason = isRateLimited ? 'Rate limited by Roblox/roproxy' : `Upstream error (HTTP ${res.status})`
+        lastError = new Error(`User lookup failed: ${reason} — ${body.slice(0, 200)}`)
+
+        if (isRateLimited && attempt < maxAttempts) {
+          await new Promise(r => setTimeout(r, 800 * attempt)) // 800ms, then 1600ms
+          continue
+        }
+        throw lastError
+      }
+
+      const data = await res.json()
+      if (!data.data?.length) throw new Error('User not found')
+      return data.data[0] as { id: number; name: string; displayName: string }
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e))
+      if (lastError.message === 'User not found') throw lastError // don't retry a genuine not-found
+      if (attempt >= maxAttempts) throw lastError
+    }
+  }
+
+  throw lastError || new Error('User lookup failed: unknown error')
 }
 
 export async function getUserProfile(uid: number) {
   const res = await fetch(`${BASE('users')}/v1/users/${uid}`, { next: { revalidate: 0 } })
-  if (!res.ok) throw new Error('Profile fetch failed')
+  if (!res.ok) {
+    const reason = res.status === 429 ? 'Rate limited by Roblox/roproxy' : `Upstream error (HTTP ${res.status})`
+    throw new Error(`Profile fetch failed: ${reason}`)
+  }
   return res.json()
 }
 
@@ -171,6 +205,85 @@ export async function getAvatar(uid: number) {
   if (!res.ok) return []
   const data = await res.json()
   return (data.assets || []) as Array<{ id: number; name: string; assetType: { id: number; name: string } }>
+}
+
+// Total OWNED accessories via Open Cloud Inventory API — distinct from
+// getAvatar() above, which only returns currently-EQUIPPED items (≤ ~10).
+// This counts everything the player has ever acquired across the "Clothing"
+// category (accessories, bottoms, classic clothing, shoes, tops), per the
+// Inventory API docs. We have NOT yet confirmed the exact filter parameter
+// syntax for this category against a real account — the docs only confirm
+// the category names exist, not the precise query format, and other
+// developers have hit real friction with asset-type filtering on this same
+// endpoint family. So this logs the raw response of the first page on every
+// call so we can fix the filter syntax from real evidence rather than
+// guessing twice (same lesson learned from badges and xTracker).
+async function getOwnedAccessoryCountOpenCloud(uid: number, apiKey: string): Promise<{ count: number; debug?: string }> {
+  let total = 0
+  let pageToken = ''
+  let pages = 0
+  const maxPages = 50
+  let firstPageDebug: string | undefined
+
+  try {
+    while (pages < maxPages) {
+      const params = new URLSearchParams({
+        filter: 'accessories=true',
+        maxPageSize: '100',
+      })
+      if (pageToken) params.set('pageToken', pageToken)
+
+      const url = `https://apis.roblox.com/cloud/v2/users/${uid}/inventory-items?${params.toString()}`
+      const res = await fetch(url, {
+        headers: { 'x-api-key': apiKey },
+        next: { revalidate: 0 },
+      })
+      const rawBody = await res.text()
+
+      if (!res.ok) {
+        return { count: total, debug: `[opencloud-accessories] [${url}] → HTTP ${res.status}: ${rawBody.slice(0, 400)}` }
+      }
+
+      let data: { inventoryItems?: unknown[]; nextPageToken?: string }
+      try {
+        data = JSON.parse(rawBody)
+      } catch {
+        return { count: total, debug: `[opencloud-accessories] response was not valid JSON: ${rawBody.slice(0, 400)}` }
+      }
+
+      if (!Array.isArray(data.inventoryItems)) {
+        return { count: total, debug: `[opencloud-accessories] response JSON had no "inventoryItems" array: ${rawBody.slice(0, 400)}` }
+      }
+
+      // Capture the first page's raw body even on success — we want to
+      // confirm this filter syntax actually returns accessory-type items
+      // and not, say, an empty result that silently means "wrong filter."
+      if (pages === 0) {
+        firstPageDebug = `[opencloud-accessories] [${url}] → first page raw body: ${rawBody.slice(0, 500)}`
+      }
+
+      total += data.inventoryItems.length
+      pages++
+
+      if (!data.nextPageToken) break
+      pageToken = data.nextPageToken
+    }
+    return { count: total, debug: firstPageDebug }
+  } catch (e) {
+    return { count: total, debug: `[opencloud-accessories] Fetch threw an exception: ${e instanceof Error ? e.message : String(e)}` }
+  }
+}
+
+// Public entry point. Returns null count (with checked=false) if no Open
+// Cloud key is configured — there's no legacy fallback for total-owned
+// accessories, since the older API only exposes currently-equipped items.
+export async function getOwnedAccessoryCount(uid: number): Promise<{ count: number | null; checked: boolean; debug?: string }> {
+  const apiKey = process.env.ROBLOX_OPEN_CLOUD_KEY
+  if (!apiKey) {
+    return { count: null, checked: false }
+  }
+  const result = await getOwnedAccessoryCountOpenCloud(uid, apiKey)
+  return { count: result.count, checked: true, debug: result.debug }
 }
 
 export async function getCollectibles(uid: number) {

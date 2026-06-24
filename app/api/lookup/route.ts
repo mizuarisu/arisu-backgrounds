@@ -6,6 +6,7 @@ import {
   getGroups,
   getBadgeCount,
   getAvatar,
+  getOwnedAccessoryCount,
   getCollectibles,
   getUserThumbnails,
   getUserAvatar,
@@ -38,12 +39,13 @@ export async function GET(req: NextRequest) {
     const uid = user.id
 
     // Fetch profile avatar first so we have it
-    const [profile, friends, groups, badges, avatarAssets, collectibles, profileAvatar, blacklistDb, xtracker] = await Promise.allSettled([
+    const [profile, friends, groups, badges, avatarAssets, ownedAccessories, collectibles, profileAvatar, blacklistDb, xtracker] = await Promise.allSettled([
       getUserProfile(uid),
       getFriends(uid),
       getGroups(uid),
       getBadgeCount(uid),
       getAvatar(uid),
+      getOwnedAccessoryCount(uid),
       getCollectibles(uid),
       getUserAvatar(uid),
       getDatabase(),
@@ -55,6 +57,7 @@ export async function GET(req: NextRequest) {
     const groupsData = groups.status === 'fulfilled' ? groups.value : []
     const badgeResult = badges.status === 'fulfilled' ? badges.value : { count: 0, dates: [] as string[], source: 'legacy' as const, debug: badges.status === 'rejected' ? String(badges.reason) : undefined }
     const avatarData = avatarAssets.status === 'fulfilled' ? avatarAssets.value : []
+    const ownedAccessoriesResult = ownedAccessories.status === 'fulfilled' ? ownedAccessories.value : { count: null as number | null, checked: false, debug: ownedAccessories.status === 'rejected' ? String(ownedAccessories.reason) : undefined }
     const collectiblesData = collectibles.status === 'fulfilled' ? collectibles.value : []
     const profileAvatarUrl = profileAvatar.status === 'fulfilled' ? profileAvatar.value : null
     const blacklist = blacklistDb.status === 'fulfilled' ? blacklistDb.value : { users: [], groups: [] }
@@ -81,6 +84,10 @@ export async function GET(req: NextRequest) {
       logEvent('warn', 'badge_fetch', `Badge fetch (${badgeResult.source}) returned count=${badgeResult.count} with a debug note for ${user.name}`, { userId: uid, count: badgeResult.count, source: badgeResult.source, debug: badgeResult.debug })
     } else {
       logEvent('info', 'badge_fetch', `Fetched badge count ${badgeResult.count} for ${user.name} via ${badgeResult.source}`, { userId: uid, count: badgeResult.count, source: badgeResult.source })
+    }
+
+    if (ownedAccessoriesResult.checked) {
+      logEvent(ownedAccessoriesResult.debug ? 'warn' : 'info', 'badge_fetch', `Owned accessory count for ${user.name}: ${ownedAccessoriesResult.count}`, { userId: uid, count: ownedAccessoriesResult.count, debug: ownedAccessoriesResult.debug })
     }
 
     if (directBlacklistEntry) {
@@ -113,7 +120,8 @@ export async function GET(req: NextRequest) {
       groups: groupsData,
       badgeCount: badgeResult.count,
       badgeDates: badgeResult.dates, // ISO timestamps, used to render the badges-over-time chart; empty if using legacy source
-      accessories: accessoryCount,
+      accessories: accessoryCount, // currently EQUIPPED accessories (legacy avatar endpoint)
+      ownedAccessoryCount: ownedAccessoriesResult.count, // total OWNED accessories ever acquired (Open Cloud) — null if no API key configured
       collectibles: collectiblesData.length,
       directBlacklistEntry: directBlacklistEntry
         ? { reason: directBlacklistEntry.reason, severity: directBlacklistEntry.severity, addedAt: directBlacklistEntry.addedAt }
@@ -124,8 +132,8 @@ export async function GET(req: NextRequest) {
     })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'
-    const status = message === 'User not found' ? 404 : 500
-    logEvent('error', 'player_lookup', `Lookup failed for "${username}": ${message}`, { username, status })
+    const status = message === 'User not found' ? 404 : message.includes('Rate limited') ? 429 : 500
+    logEvent('error', 'player_lookup', `Lookup failed for "${username}": ${message}`, { username, status, message })
     return NextResponse.json({ error: message }, { status })
   }
 }
