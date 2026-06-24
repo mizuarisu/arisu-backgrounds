@@ -222,7 +222,7 @@ export default function DatabaseManager() {
           <SectionLabel count={users.length} emoji="🙅">Blacklisted Users</SectionLabel>
 
           <div style={{ background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 16, padding: 18, marginBottom: 18 }}>
-            <p style={{ fontSize: 12, color: 'var(--fg-3)', marginBottom: 10 }}>Add by username or Roblox User ID</p>
+            <p style={{ fontSize: 12, color: 'var(--fg-3)', marginBottom: 10 }}>Add by Roblox User ID</p>
             <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
               <input style={{ ...inputStyle, flex: 1, minWidth: 140 }} placeholder="Username or User ID…" value={userInput} onChange={e => setUserInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addUser()} />
               <select style={selectStyle} value={userSev} onChange={e => setUserSev(e.target.value as Severity)}>
