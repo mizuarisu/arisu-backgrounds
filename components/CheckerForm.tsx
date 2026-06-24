@@ -313,16 +313,15 @@ export default function CheckerForm() {
                   <div style={{ fontSize: 11, color: 'var(--fg-3)', fontWeight: 600 }}>Equipped</div>
                 </div>
                 <div style={{ background: 'var(--bg-3)', borderRadius: 14, padding: '12px 14px' }}>
-                  <div style={{ fontSize: 22 }}>💎</div>
-                  <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--fg)', letterSpacing: '-0.02em' }}>{data.collectibles}</div>
-                  <div style={{ fontSize: 11, color: 'var(--fg-3)', fontWeight: 600 }}>Collectibles</div>
+                  <div style={{ fontSize: 22 }}>{data.ownedAccessoryCount !== null ? '👒' : '💎'}</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--fg)', letterSpacing: '-0.02em' }}>
+                    {data.ownedAccessoryCount !== null ? data.ownedAccessoryCount : data.collectibles}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--fg-3)', fontWeight: 600 }}>
+                    {data.ownedAccessoryCount !== null ? 'Total Owned' : 'Collectibles'}
+                  </div>
                 </div>
               </div>
-              {data.ownedAccessoryCount !== null && (
-                <div style={{ marginTop: 10, fontSize: 12, color: 'var(--fg-2)', textAlign: 'center' }}>
-                  <strong style={{ color: 'var(--fg)' }}>{data.ownedAccessoryCount}</strong> total accessories owned
-                </div>
-              )}
             </Card>
 
             {/* Badge count tile — full chart (if dates are available) renders below as its own card */}

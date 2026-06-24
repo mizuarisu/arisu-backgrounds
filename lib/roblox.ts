@@ -218,6 +218,19 @@ export async function getAvatar(uid: number) {
 // endpoint family. So this logs the raw response of the first page on every
 // call so we can fix the filter syntax from real evidence rather than
 // guessing twice (same lesson learned from badges and xTracker).
+// CONFIRMED correct filter syntax (from Roblox's official creator-docs example,
+// June 2026): there is NO "accessories=true" shorthand — that was an invented
+// guess that silently matched nothing, which is why it showed "0 owned" next
+// to "5 equipped" (logically impossible, since equipped items are owned).
+// The real pattern is `onlyCollectibles=true;inventoryItemAssetTypes=*` for
+// category filtering, with semicolon-separated filters and explicit asset
+// type names (not the legacy numeric IDs used elsewhere in this file).
+// Accessory-related asset type names per Roblox's AssetType enum:
+const ACCESSORY_ASSET_TYPES = [
+  'HAT', 'HAIR_ACCESSORY', 'FACE_ACCESSORY', 'NECK_ACCESSORY',
+  'SHOULDER_ACCESSORY', 'FRONT_ACCESSORY', 'BACK_ACCESSORY', 'WAIST_ACCESSORY',
+]
+
 async function getOwnedAccessoryCountOpenCloud(uid: number, apiKey: string): Promise<{ count: number; debug?: string }> {
   let total = 0
   let pageToken = ''
@@ -228,7 +241,7 @@ async function getOwnedAccessoryCountOpenCloud(uid: number, apiKey: string): Pro
   try {
     while (pages < maxPages) {
       const params = new URLSearchParams({
-        filter: 'accessories=true',
+        filter: `inventoryItemAssetTypes=${ACCESSORY_ASSET_TYPES.join(',')}`,
         maxPageSize: '100',
       })
       if (pageToken) params.set('pageToken', pageToken)
@@ -255,9 +268,9 @@ async function getOwnedAccessoryCountOpenCloud(uid: number, apiKey: string): Pro
         return { count: total, debug: `[opencloud-accessories] response JSON had no "inventoryItems" array: ${rawBody.slice(0, 400)}` }
       }
 
-      // Capture the first page's raw body even on success — we want to
-      // confirm this filter syntax actually returns accessory-type items
-      // and not, say, an empty result that silently means "wrong filter."
+      // Still capture the first page's raw body even on success, since this
+      // is the first real test of the corrected filter syntax — better to
+      // confirm than assume it's right just because it returns a number.
       if (pages === 0) {
         firstPageDebug = `[opencloud-accessories] [${url}] → first page raw body: ${rawBody.slice(0, 500)}`
       }
