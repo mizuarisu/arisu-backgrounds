@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 
 type Severity = 'high' | 'medium' | 'low'
 
@@ -45,8 +45,44 @@ function SectionLabel({ children, count, emoji }: { children: React.ReactNode; c
   )
 }
 
+function SearchBar({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+  return (
+    <div style={{ position: 'relative', marginBottom: 14 }}>
+      <div style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: 'var(--fg-3)', pointerEvents: 'none' }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      </div>
+      <input
+        style={{ width: '100%', padding: '9px 14px 9px 36px', fontSize: 13, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg-3)', color: 'var(--fg)' }}
+        placeholder={placeholder}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+      />
+      {value && (
+        <button
+          onClick={() => onChange('')}
+          style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--fg-3)', cursor: 'pointer', fontSize: 13, padding: 4 }}
+          aria-label="Clear search"
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  )
+}
+
 const sevColor: Record<Severity, 'red' | 'amber' | 'green'> = { high: 'red', medium: 'amber', low: 'green' }
 const sevEmoji: Record<Severity, string> = { high: '🔴', medium: '🟡', low: '🟢' }
+
+function matchesQuery(entry: BlacklistEntry, query: string): boolean {
+  if (!query.trim()) return true
+  const q = query.trim().toLowerCase()
+  return (
+    entry.value.toLowerCase().includes(q) ||
+    (entry.name?.toLowerCase().includes(q) ?? false) ||
+    entry.reason.toLowerCase().includes(q) ||
+    entry.severity.toLowerCase().includes(q)
+  )
+}
 
 export default function DatabaseManager() {
   const [users, setUsers] = useState<BlacklistEntry[]>([])
@@ -59,11 +95,13 @@ export default function DatabaseManager() {
   const [userSev, setUserSev] = useState<Severity>('medium')
   const [userReason, setUserReason] = useState('')
   const [addingUser, setAddingUser] = useState(false)
+  const [userSearch, setUserSearch] = useState('')
 
   const [groupInput, setGroupInput] = useState('')
   const [groupSev, setGroupSev] = useState<Severity>('medium')
   const [groupReason, setGroupReason] = useState('')
   const [addingGroup, setAddingGroup] = useState(false)
+  const [groupSearch, setGroupSearch] = useState('')
 
   const fetchBlacklist = async () => {
     try {
@@ -82,6 +120,9 @@ export default function DatabaseManager() {
   }
 
   useEffect(() => { fetchBlacklist() }, [])
+
+  const filteredUsers = useMemo(() => users.filter(u => matchesQuery(u, userSearch)), [users, userSearch])
+  const filteredGroups = useMemo(() => groups.filter(g => matchesQuery(g, groupSearch)), [groups, groupSearch])
 
   const addEntry = async (type: 'user' | 'group', value: string, name: string, severity: Severity, reason: string) => {
     if (!value.trim()) return
@@ -158,8 +199,8 @@ export default function DatabaseManager() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: 80 }} />)}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+        {[1, 2].map(i => <div key={i} className="skeleton" style={{ height: 320 }} />)}
       </div>
     )
   }
@@ -173,83 +214,99 @@ export default function DatabaseManager() {
         <div className="animate-pop" style={{ padding: '13px 18px', background: 'var(--green-bg)', border: '1px solid var(--green-border)', borderRadius: 16, color: 'var(--green)', fontSize: 13 }}>✓ {success}</div>
       )}
 
-      {/* Users */}
-      <Card>
-        <SectionLabel count={users.length} emoji="🙅">Blacklisted Users</SectionLabel>
+      {/* Side-by-side: Users left, Groups right */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
 
-        <div style={{ background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 16, padding: 18, marginBottom: 18 }}>
-          <p style={{ fontSize: 12, color: 'var(--fg-3)', marginBottom: 10 }}>Add by username or Roblox User ID</p>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-            <input style={{ ...inputStyle, flex: 1, minWidth: 160 }} placeholder="Username or User ID…" value={userInput} onChange={e => setUserInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addUser()} />
-            <select style={selectStyle} value={userSev} onChange={e => setUserSev(e.target.value as Severity)}>
-              <option value="high">🔴 High</option>
-              <option value="medium">🟡 Medium</option>
-              <option value="low">🟢 Low</option>
-            </select>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input style={{ ...inputStyle, flex: 1 }} placeholder="Reason…" value={userReason} onChange={e => setUserReason(e.target.value)} onKeyDown={e => e.key === 'Enter' && addUser()} />
-            <button style={{ ...btnStyle, opacity: addingUser ? 0.6 : 1 }} disabled={addingUser} onClick={addUser}>{addingUser ? 'Adding…' : '+ Add'}</button>
-          </div>
-        </div>
+        {/* Users */}
+        <Card>
+          <SectionLabel count={users.length} emoji="🙅">Blacklisted Users</SectionLabel>
 
-        {users.length === 0 ? (
-          <p style={{ fontSize: 13, color: 'var(--fg-3)', fontStyle: 'italic', textAlign: 'center', padding: '12px 0' }}>No blacklisted users yet.</p>
-        ) : (
-          <div>
-            {users.map(u => (
-              <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 0', borderBottom: '1px solid var(--border)' }}>
-                <Chip color={sevColor[u.severity]}>{sevEmoji[u.severity]} {u.severity}</Chip>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--fg)' }}>{u.name ? `${u.name} (${u.value})` : u.value}</div>
-                  {u.reason && <div style={{ fontSize: 12, color: 'var(--fg-3)', marginTop: 2 }}>{u.reason}</div>}
+          <div style={{ background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 16, padding: 18, marginBottom: 18 }}>
+            <p style={{ fontSize: 12, color: 'var(--fg-3)', marginBottom: 10 }}>Add by username or Roblox User ID</p>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+              <input style={{ ...inputStyle, flex: 1, minWidth: 140 }} placeholder="Username or User ID…" value={userInput} onChange={e => setUserInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addUser()} />
+              <select style={selectStyle} value={userSev} onChange={e => setUserSev(e.target.value as Severity)}>
+                <option value="high">🔴 High</option>
+                <option value="medium">🟡 Medium</option>
+                <option value="low">🟢 Low</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input style={{ ...inputStyle, flex: 1 }} placeholder="Reason…" value={userReason} onChange={e => setUserReason(e.target.value)} onKeyDown={e => e.key === 'Enter' && addUser()} />
+              <button style={{ ...btnStyle, opacity: addingUser ? 0.6 : 1 }} disabled={addingUser} onClick={addUser}>{addingUser ? 'Adding…' : '+ Add'}</button>
+            </div>
+          </div>
+
+          {users.length > 0 && (
+            <SearchBar value={userSearch} onChange={setUserSearch} placeholder="Filter by name, ID, or reason…" />
+          )}
+
+          {users.length === 0 ? (
+            <p style={{ fontSize: 13, color: 'var(--fg-3)', fontStyle: 'italic', textAlign: 'center', padding: '12px 0' }}>No blacklisted users yet.</p>
+          ) : filteredUsers.length === 0 ? (
+            <p style={{ fontSize: 13, color: 'var(--fg-3)', fontStyle: 'italic', textAlign: 'center', padding: '12px 0' }}>No matches for &quot;{userSearch}&quot;.</p>
+          ) : (
+            <div>
+              {filteredUsers.map(u => (
+                <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 0', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}>
+                  <Chip color={sevColor[u.severity]}>{sevEmoji[u.severity]} {u.severity}</Chip>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--fg)' }}>{u.name ? `${u.name} (${u.value})` : u.value}</div>
+                    {u.reason && <div style={{ fontSize: 12, color: 'var(--fg-3)', marginTop: 2 }}>{u.reason}</div>}
+                  </div>
+                  <a href={`https://www.roblox.com/users/${u.value}/profile`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: 'var(--accent-2)', textDecoration: 'none', fontWeight: 600 }}>View</a>
+                  <button onClick={() => removeEntry(u.id)} style={{ fontSize: 12, padding: '6px 12px', background: 'var(--red-bg)', color: 'var(--red)', border: 'none', borderRadius: 99, cursor: 'pointer', fontFamily: 'Outfit, sans-serif', fontWeight: 600 }}>Remove</button>
                 </div>
-                <a href={`https://www.roblox.com/users/${u.value}/profile`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: 'var(--accent-2)', textDecoration: 'none', fontWeight: 600 }}>View</a>
-                <button onClick={() => removeEntry(u.id)} style={{ fontSize: 12, padding: '6px 12px', background: 'var(--red-bg)', color: 'var(--red)', border: 'none', borderRadius: 99, cursor: 'pointer', fontFamily: 'Outfit, sans-serif', fontWeight: 600 }}>Remove</button>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+              ))}
+            </div>
+          )}
+        </Card>
 
-      {/* Groups */}
-      <Card>
-        <SectionLabel count={groups.length} emoji="🏷️">Blacklisted Groups</SectionLabel>
+        {/* Groups */}
+        <Card>
+          <SectionLabel count={groups.length} emoji="🏷️">Blacklisted Groups</SectionLabel>
 
-        <div style={{ background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 16, padding: 18, marginBottom: 18 }}>
-          <p style={{ fontSize: 12, color: 'var(--fg-3)', marginBottom: 10 }}>Add by Group ID</p>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-            <input style={{ ...inputStyle, width: 180 }} placeholder="Group ID…" value={groupInput} onChange={e => setGroupInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addGroup()} />
-            <select style={selectStyle} value={groupSev} onChange={e => setGroupSev(e.target.value as Severity)}>
-              <option value="high">🔴 High</option>
-              <option value="medium">🟡 Medium</option>
-              <option value="low">🟢 Low</option>
-            </select>
+          <div style={{ background: 'var(--bg-3)', border: '1px solid var(--border)', borderRadius: 16, padding: 18, marginBottom: 18 }}>
+            <p style={{ fontSize: 12, color: 'var(--fg-3)', marginBottom: 10 }}>Add by Group ID</p>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+              <input style={{ ...inputStyle, flex: 1, minWidth: 140 }} placeholder="Group ID…" value={groupInput} onChange={e => setGroupInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addGroup()} />
+              <select style={selectStyle} value={groupSev} onChange={e => setGroupSev(e.target.value as Severity)}>
+                <option value="high">🔴 High</option>
+                <option value="medium">🟡 Medium</option>
+                <option value="low">🟢 Low</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input style={{ ...inputStyle, flex: 1 }} placeholder="Reason…" value={groupReason} onChange={e => setGroupReason(e.target.value)} onKeyDown={e => e.key === 'Enter' && addGroup()} />
+              <button style={{ ...btnStyle, opacity: addingGroup ? 0.6 : 1 }} disabled={addingGroup} onClick={addGroup}>{addingGroup ? 'Adding…' : '+ Add'}</button>
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input style={{ ...inputStyle, flex: 1 }} placeholder="Reason…" value={groupReason} onChange={e => setGroupReason(e.target.value)} onKeyDown={e => e.key === 'Enter' && addGroup()} />
-            <button style={{ ...btnStyle, opacity: addingGroup ? 0.6 : 1 }} disabled={addingGroup} onClick={addGroup}>{addingGroup ? 'Adding…' : '+ Add'}</button>
-          </div>
-        </div>
 
-        {groups.length === 0 ? (
-          <p style={{ fontSize: 13, color: 'var(--fg-3)', fontStyle: 'italic', textAlign: 'center', padding: '12px 0' }}>No blacklisted groups yet.</p>
-        ) : (
-          <div>
-            {groups.map(g => (
-              <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 0', borderBottom: '1px solid var(--border)' }}>
-                <Chip color={sevColor[g.severity]}>{sevEmoji[g.severity]} {g.severity}</Chip>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--fg)' }}>{g.name ? `${g.name} (${g.value})` : g.value}</div>
-                  {g.reason && <div style={{ fontSize: 12, color: 'var(--fg-3)', marginTop: 2 }}>{g.reason}</div>}
+          {groups.length > 0 && (
+            <SearchBar value={groupSearch} onChange={setGroupSearch} placeholder="Filter by name, ID, or reason…" />
+          )}
+
+          {groups.length === 0 ? (
+            <p style={{ fontSize: 13, color: 'var(--fg-3)', fontStyle: 'italic', textAlign: 'center', padding: '12px 0' }}>No blacklisted groups yet.</p>
+          ) : filteredGroups.length === 0 ? (
+            <p style={{ fontSize: 13, color: 'var(--fg-3)', fontStyle: 'italic', textAlign: 'center', padding: '12px 0' }}>No matches for &quot;{groupSearch}&quot;.</p>
+          ) : (
+            <div>
+              {filteredGroups.map(g => (
+                <div key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 0', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}>
+                  <Chip color={sevColor[g.severity]}>{sevEmoji[g.severity]} {g.severity}</Chip>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--fg)' }}>{g.name ? `${g.name} (${g.value})` : g.value}</div>
+                    {g.reason && <div style={{ fontSize: 12, color: 'var(--fg-3)', marginTop: 2 }}>{g.reason}</div>}
+                  </div>
+                  <a href={`https://www.roblox.com/groups/${g.value}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: 'var(--accent-2)', textDecoration: 'none', fontWeight: 600 }}>View</a>
+                  <button onClick={() => removeEntry(g.id)} style={{ fontSize: 12, padding: '6px 12px', background: 'var(--red-bg)', color: 'var(--red)', border: 'none', borderRadius: 99, cursor: 'pointer', fontFamily: 'Outfit, sans-serif', fontWeight: 600 }}>Remove</button>
                 </div>
-                <a href={`https://www.roblox.com/groups/${g.value}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: 'var(--accent-2)', textDecoration: 'none', fontWeight: 600 }}>View</a>
-                <button onClick={() => removeEntry(g.id)} style={{ fontSize: 12, padding: '6px 12px', background: 'var(--red-bg)', color: 'var(--red)', border: 'none', borderRadius: 99, cursor: 'pointer', fontFamily: 'Outfit, sans-serif', fontWeight: 600 }}>Remove</button>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
     </div>
   )
 }
